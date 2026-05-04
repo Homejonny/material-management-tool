@@ -192,7 +192,7 @@ function SortIcon({ sorted }: { sorted: false | "asc" | "desc" }) {
 
 export default function MaterialsPage() {
   const { data: materials, isLoading, isError } = useGetMaterials();
-  const [sorting, setSorting] = useState<SortingState>([{ id: "dejansko", desc: true }]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "st", desc: false }]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [filterMode, setFilterMode] = useState<"all" | "narociti" | "pokrito">("all");
 
