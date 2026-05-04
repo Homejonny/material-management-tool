@@ -13,7 +13,7 @@ import type {
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type { HealthStatus, Material } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
 import type { ErrorType } from "../custom-fetch";
@@ -92,6 +92,82 @@ export function useHealthCheck<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getHealthCheckQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns all materials with stock, price, required quantity, substitutes, and actual order quantity
+ * @summary Get all materials with procurement overview
+ */
+export const getGetMaterialsUrl = () => {
+  return `/api/materials`;
+};
+
+export const getMaterials = async (
+  options?: RequestInit,
+): Promise<Material[]> => {
+  return customFetch<Material[]>(getGetMaterialsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMaterialsQueryKey = () => {
+  return [`/api/materials`] as const;
+};
+
+export const getGetMaterialsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMaterials>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMaterials>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMaterialsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMaterials>>> = ({
+    signal,
+  }) => getMaterials({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMaterials>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMaterialsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMaterials>>
+>;
+export type GetMaterialsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get all materials with procurement overview
+ */
+
+export function useGetMaterials<
+  TData = Awaited<ReturnType<typeof getMaterials>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMaterials>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMaterialsQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

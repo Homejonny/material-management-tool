@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: materials
+    description: Material procurement operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /materials:
+    get:
+      operationId: getMaterials
+      tags: [materials]
+      summary: Get all materials with procurement overview
+      description: Returns all materials with stock, price, required quantity, substitutes, and actual order quantity
+      responses:
+        "200":
+          description: List of materials
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Material"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +50,65 @@ components:
           type: string
       required:
         - status
-
+    Substitute:
+      type: object
+      properties:
+        st:
+          oneOf:
+            - type: string
+            - type: number
+          description: Substitute material number
+        opis:
+          type: string
+          description: Substitute description
+        zaloga:
+          type: number
+          description: Substitute stock quantity
+        cena:
+          type: number
+          description: Substitute purchase price
+      required:
+        - st
+        - opis
+        - zaloga
+        - cena
+    Material:
+      type: object
+      properties:
+        st:
+          oneOf:
+            - type: string
+            - type: number
+          description: Material number
+        opis:
+          type: string
+          description: Material description
+        zaloga:
+          type: number
+          description: Current stock of base material
+        cena:
+          type: number
+          description: Purchase price per unit
+        kolicina:
+          type: number
+          description: Total quantity required (from planning)
+        totalSubStock:
+          type: number
+          description: Sum of all substitute stock quantities
+        dejansko:
+          type: number
+          description: Actual quantity to order = max(0, kolicina - zaloga - totalSubStock)
+        nadomestki:
+          type: array
+          items:
+            $ref: "#/components/schemas/Substitute"
+          description: List of substitute materials
+      required:
+        - st
+        - opis
+        - zaloga
+        - cena
+        - kolicina
+        - totalSubStock
+        - dejansko
+        - nadomestki

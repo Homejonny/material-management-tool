@@ -7,3 +7,5 @@
  */
 
 export * from "./healthStatus";
+export * from "./material";
+export * from "./substitute";

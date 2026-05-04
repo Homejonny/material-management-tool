@@ -5,20 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-export interface HealthStatus {
-  status: string;
-}
-
-export interface Substitute {
-  /** Substitute material number */
-  st: string | number;
-  /** Substitute description */
-  opis: string;
-  /** Substitute stock quantity */
-  zaloga: number;
-  /** Substitute purchase price */
-  cena: number;
-}
+import type { Substitute } from "./substitute";
 
 export interface Material {
   /** Material number */

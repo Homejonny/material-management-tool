@@ -1,0 +1,936 @@
+[
+  {
+    "st": 2,
+    "opis": "L-Arginine hydrochloride [vegan] RM079-A (Vita Actives)",
+    "zaloga": 0,
+    "cena": 8.75,
+    "kolicina": 525,
+    "totalSubStock": 793.95,
+    "dejansko": 0,
+    "nadomestki": [
+      {
+        "st": 89,
+        "opis": "AMINOFERMENT® L-Arginin HCL A0147_B (pharmavit)",
+        "zaloga": 793.95,
+        "cena": 5.95
+      }
+    ]
+  },
+  {
+    "st": 24,
+    "opis": "Magnesium Citrate Tribasic anhydrous RM450 (Vita Actives) RM450",
+    "zaloga": 7.9375,
+    "cena": 7.81984,
+    "kolicina": 400,
+    "totalSubStock": 205.89997,
+    "dejansko": 186.16253,
+    "nadomestki": [
+      {
+        "st": 7,
+        "opis": "Magnesium citrate anhydrous (HSH)",
+        "zaloga": 13.5,
+        "cena": 6.84963
+      },
+      {
+        "st": 106,
+        "opis": "A0477 Magnesium Citrate Anhydrous DC (Pharmavit)",
+        "zaloga": 192.39997,
+        "cena": 6.95
+      }
+    ]
+  },
+  {
+    "st": 25,
+    "opis": "B-Complex Capsule Premix PRM101 (VitaActives)",
+    "zaloga": 50,
+    "cena": 40,
+    "kolicina": 40,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 30,
+    "opis": "Magnesium Carbonate Heavy Powder (Vita Actives)RM1372-A",
+    "zaloga": 130,
+    "cena": 6.6,
+    "kolicina": 360,
+    "totalSubStock": 0,
+    "dejansko": 230,
+    "nadomestki": []
+  },
+  {
+    "st": 32,
+    "opis": "Magnesium Stearate [Vegetable] (Vita Actives)RM465",
+    "zaloga": 449.775,
+    "cena": 4.14,
+    "kolicina": 500,
+    "totalSubStock": 564.50835,
+    "dejansko": 0,
+    "nadomestki": [
+      {
+        "st": 98,
+        "opis": "A0162 Magnesium Stearate (Pharmavit)",
+        "zaloga": 0,
+        "cena": 0
+      },
+      {
+        "st": 102,
+        "opis": "Mg stearate (HSH)",
+        "zaloga": 560.8,
+        "cena": 5.45
+      },
+      {
+        "st": 156,
+        "opis": "Magnesium Stearate (Vegetable) (MOSSELMAN)",
+        "zaloga": 3.70835,
+        "cena": 5.99527
+      }
+    ]
+  },
+  {
+    "st": 34,
+    "opis": "D-RIBOSE (Vita Actives) RM056",
+    "zaloga": 104.86,
+    "cena": 13.34025,
+    "kolicina": 75,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 35,
+    "opis": "RHODIOLA DE 3% ROSAVINS 1% SALIDROSIDE (Vita Actives) RM461",
+    "zaloga": 283.18,
+    "cena": 184,
+    "kolicina": 275,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": [
+      {
+        "st": 185,
+        "opis": "Val – Rhodiola Rosea - standardized extract 65-15 (3% rosavins, 1% salidroside) (AlpineGroup)",
+        "zaloga": 0,
+        "cena": 0
+      }
+    ]
+  },
+  {
+    "st": 36,
+    "opis": "KSM-66® [Ashwagandha extract] RM1236",
+    "zaloga": 112,
+    "cena": 74.5,
+    "kolicina": 30,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 47,
+    "opis": "TeaXcel® E40 - Green tea leaf 95% polyphenols RM303",
+    "zaloga": 457,
+    "cena": 26.6,
+    "kolicina": 450,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 49,
+    "opis": "CAYENNE PEPER 10:1 (Vita Actives) RM4766",
+    "zaloga": 101,
+    "cena": 22.76,
+    "kolicina": 100,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 51,
+    "opis": "Grape Seed Extract GSE (Vita Actives) RM4160",
+    "zaloga": 100,
+    "cena": 22.7,
+    "kolicina": 100,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 53,
+    "opis": "Caffeine Anhydrous powder (Vita Actives) RM017",
+    "zaloga": 111.25,
+    "cena": 11.76,
+    "kolicina": 50,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": [
+      {
+        "st": 112,
+        "opis": "A1145 Caffein Anhydrous (Pharmavit)",
+        "zaloga": 0,
+        "cena": 0
+      }
+    ]
+  },
+  {
+    "st": 55,
+    "opis": "Magnesium Oxide DC Granular RM118B  (Vita Actives)",
+    "zaloga": 0,
+    "cena": 7.75158,
+    "kolicina": 1500,
+    "totalSubStock": 405.05,
+    "dejansko": 1094.95,
+    "nadomestki": [
+      {
+        "st": 107,
+        "opis": "A0161 Magnesium Oxide DC (Pharmavit)",
+        "zaloga": 405.05,
+        "cena": 5.65
+      }
+    ]
+  },
+  {
+    "st": 56,
+    "opis": "Isomaltulose Powder RM1501 (Vita Actives)",
+    "zaloga": 25.00174,
+    "cena": 6.97,
+    "kolicina": 25,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 60,
+    "opis": "Citric Acid Anhydrous (Pharmavit)",
+    "zaloga": 0,
+    "cena": 3.95059,
+    "kolicina": 50,
+    "totalSubStock": 0,
+    "dejansko": 50,
+    "nadomestki": []
+  },
+  {
+    "st": 61,
+    "opis": "Calcium pyruvate  powder RM730 (VitaActives)",
+    "zaloga": 79.86,
+    "cena": 16.82016,
+    "kolicina": 75,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 63,
+    "opis": "GINSENG EXTRACT 80% RM 713 (VitaActives)",
+    "zaloga": 24,
+    "cena": 27,
+    "kolicina": 25,
+    "totalSubStock": 0,
+    "dejansko": 1,
+    "nadomestki": []
+  },
+  {
+    "st": 68,
+    "opis": "00123  Cordyceps 7% Cordiceptic Acid extract powder (Alpine Nutrition)",
+    "zaloga": 4,
+    "cena": 30.3,
+    "kolicina": 10,
+    "totalSubStock": 361,
+    "dejansko": 0,
+    "nadomestki": [
+      {
+        "st": 179,
+        "opis": "Cordyceps Sinensis Extract 64-20 (Alpine)",
+        "zaloga": 361,
+        "cena": 0
+      }
+    ]
+  },
+  {
+    "st": 71,
+    "opis": "Creatine HCL  hydrochloride RM 032  (VitaActives)",
+    "zaloga": 465,
+    "cena": 7.6,
+    "kolicina": 900,
+    "totalSubStock": 0,
+    "dejansko": 435,
+    "nadomestki": []
+  },
+  {
+    "st": 72,
+    "opis": "Beta Vulgaris extract 10:1 (Vita Actives) RM4790",
+    "zaloga": 56.25,
+    "cena": 21,
+    "kolicina": 600,
+    "totalSubStock": 0,
+    "dejansko": 543.75,
+    "nadomestki": []
+  },
+  {
+    "st": 73,
+    "opis": "Red spinach extract (9% Nitrate conc.) (Vita Actives) RM4560",
+    "zaloga": 265.7482,
+    "cena": 82.84999,
+    "kolicina": 375,
+    "totalSubStock": 0,
+    "dejansko": 109.2518,
+    "nadomestki": []
+  },
+  {
+    "st": 74,
+    "opis": "Arugula extract 10:1 (Vita Actives) RM4783",
+    "zaloga": 0,
+    "cena": 38,
+    "kolicina": 275,
+    "totalSubStock": 253.125,
+    "dejansko": 21.875,
+    "nadomestki": [
+      {
+        "st": 121,
+        "opis": "Arugula extract 10:1 Alpine Nutrition",
+        "zaloga": 253.125,
+        "cena": 34
+      }
+    ]
+  },
+  {
+    "st": 76,
+    "opis": "L-Carnitin-L-Tartrate (Pharmavit) A0531",
+    "zaloga": 17.5,
+    "cena": 21.44971,
+    "kolicina": 675,
+    "totalSubStock": 0,
+    "dejansko": 657.5,
+    "nadomestki": []
+  },
+  {
+    "st": 77,
+    "opis": "A1399 N-Acetyl-L-Carnitin (Pharmavit) \tA1399",
+    "zaloga": 0,
+    "cena": 25.14971,
+    "kolicina": 175,
+    "totalSubStock": 0,
+    "dejansko": 175,
+    "nadomestki": []
+  },
+  {
+    "st": 78,
+    "opis": "Bearberry [Arctostaphylos uva-ursi] leaf 20% Arbutin [HPLC] powder extract (RM4422)",
+    "zaloga": 108,
+    "cena": 56,
+    "kolicina": 25,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 79,
+    "opis": "Dandelion [Taraxacum officinale] root 2% Flavones [UV] powder extract (5 to 1) (RM1378)",
+    "zaloga": 118.5,
+    "cena": 22.92,
+    "kolicina": 25,
+    "totalSubStock": 3,
+    "dejansko": 0,
+    "nadomestki": [
+      {
+        "st": 52,
+        "opis": "DANDELION ROOT 10-1 DRY EXTRAC (Vita Actives) RM4770",
+        "zaloga": 3,
+        "cena": 25.5
+      }
+    ]
+  },
+  {
+    "st": 80,
+    "opis": "Parsley [Petroselinum crispum] herb 10 to 1 powder extract (RM4626)",
+    "zaloga": 79,
+    "cena": 23.6,
+    "kolicina": 25,
+    "totalSubStock": 24.134,
+    "dejansko": 0,
+    "nadomestki": [
+      {
+        "st": 150,
+        "opis": "Parsley [Petroselinum crispum] herb 10 to 1 powder extract RM4626 (VitaActives)",
+        "zaloga": 24.134,
+        "cena": 23.6
+      }
+    ]
+  },
+  {
+    "st": 82,
+    "opis": "Artichoke [Cynara scolymus L] leaf 5% Cynarin [UV] powder extract (RM1293)",
+    "zaloga": 54,
+    "cena": 62.25,
+    "kolicina": 25,
+    "totalSubStock": 50,
+    "dejansko": 0,
+    "nadomestki": [
+      {
+        "st": 184,
+        "opis": "ARTICHOKE EXTRACT 2-5% CYNARINE 88170 (Frutol)",
+        "zaloga": 50,
+        "cena": 28
+      }
+    ]
+  },
+  {
+    "st": 83,
+    "opis": "Pyridoxine hydrochloride powder [Vitamin B6] RM135 (VitaActives)",
+    "zaloga": 8.9,
+    "cena": 46,
+    "kolicina": 25,
+    "totalSubStock": 0,
+    "dejansko": 16.1,
+    "nadomestki": []
+  },
+  {
+    "st": 84,
+    "opis": "TriPotassium Citrate anhydrous powder RM2042 (VitaActives)",
+    "zaloga": 231.34,
+    "cena": 4.92798,
+    "kolicina": 150,
+    "totalSubStock": 30,
+    "dejansko": 0,
+    "nadomestki": [
+      {
+        "st": 41,
+        "opis": "Tripotassium Citrate Monohydrate  (Vita Actives)  RM325A",
+        "zaloga": 25,
+        "cena": 3.33955
+      },
+      {
+        "st": 120,
+        "opis": "Tripotassium Citrate Monohydrate Fine (Lehvoss DE)",
+        "zaloga": 5,
+        "cena": 10.284
+      }
+    ]
+  },
+  {
+    "st": 104,
+    "opis": "Magnesium citrate buffered [30% Mg] powder RM2006 (VitaActives)",
+    "zaloga": 35,
+    "cena": 5.5,
+    "kolicina": 50,
+    "totalSubStock": 0,
+    "dejansko": 15,
+    "nadomestki": []
+  },
+  {
+    "st": 105,
+    "opis": "A1306_B AMINOFERMENT® Beta Alanin (Pharmavit)",
+    "zaloga": 650,
+    "cena": 2.85,
+    "kolicina": 775,
+    "totalSubStock": 20,
+    "dejansko": 105,
+    "nadomestki": [
+      {
+        "st": 33,
+        "opis": "BETA-ALANINE [VEGAN](Vita Actives) RM007B",
+        "zaloga": 20,
+        "cena": 2.94
+      }
+    ]
+  },
+  {
+    "st": 116,
+    "opis": "Senactiv (HSH)",
+    "zaloga": 24,
+    "cena": 640,
+    "kolicina": 25,
+    "totalSubStock": 0,
+    "dejansko": 1,
+    "nadomestki": [
+      {
+        "st": 62,
+        "opis": "Senactiv® (JDS)",
+        "zaloga": 0,
+        "cena": 605.773
+      }
+    ]
+  },
+  {
+    "st": 127,
+    "opis": "Cholecalciferol [100,000 IU per g [0.25% D3]] powder RM159-B (VitaActives) - Vitamin D3",
+    "zaloga": 25,
+    "cena": 15.2,
+    "kolicina": 25,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 131,
+    "opis": "L-ORNITHINE HCL - O1063201 (AlpineGroup)",
+    "zaloga": 75,
+    "cena": 15.9,
+    "kolicina": 125,
+    "totalSubStock": 0,
+    "dejansko": 50,
+    "nadomestki": []
+  },
+  {
+    "st": 138,
+    "opis": "Fructo-oligosaccharides [FOS] Powder [Low aw] [Source: Sugarcane] (RM1525-A) VitaActives",
+    "zaloga": 182.78,
+    "cena": 8.52,
+    "kolicina": 75,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 139,
+    "opis": "Art. 849FRF – exGrape™ SEED OPCFR Grape Seed Extract (Breko)",
+    "zaloga": 52.63142,
+    "cena": 66.66971,
+    "kolicina": 25,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 143,
+    "opis": "Glucomannan 95% [Ex- Amorphophallus konjac] RM1285 (VitaActives)",
+    "zaloga": 237,
+    "cena": 20.1,
+    "kolicina": 25,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 145,
+    "opis": "L-Tyrosine powder [Vegan] RM563 (VitaActives)",
+    "zaloga": 67.2,
+    "cena": 7.25,
+    "kolicina": 150,
+    "totalSubStock": 0,
+    "dejansko": 82.8,
+    "nadomestki": []
+  },
+  {
+    "st": 146,
+    "opis": "L-Carnitine L-Tartrate powder [60 mesh] RM082-A (VitaActives)",
+    "zaloga": 66.55,
+    "cena": 20.35,
+    "kolicina": 150,
+    "totalSubStock": 0,
+    "dejansko": 83.45,
+    "nadomestki": []
+  },
+  {
+    "st": 147,
+    "opis": "Choline (L+) Bitartrate Powder [Conditioned with 1% Silica] RM567-A",
+    "zaloga": 98.268,
+    "cena": 8.8,
+    "kolicina": 50,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 148,
+    "opis": "Coleus [Coleus forskohlii] root 4 t 1 powder extract RM4761 (VitaActives)",
+    "zaloga": 0,
+    "cena": 0,
+    "kolicina": 25,
+    "totalSubStock": 0,
+    "dejansko": 25,
+    "nadomestki": []
+  },
+  {
+    "st": 149,
+    "opis": "African mango [Irvingia gabonensis] seed 10 to 1 powder extract RM786 (VitaActives)",
+    "zaloga": 49.134,
+    "cena": 52.4,
+    "kolicina": 25,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 150,
+    "opis": "Parsley [Petroselinum crispum] herb 10 to 1 powder extract RM4626 (VitaActives)",
+    "zaloga": 24.134,
+    "cena": 23.6,
+    "kolicina": 50,
+    "totalSubStock": 79,
+    "dejansko": 0,
+    "nadomestki": [
+      {
+        "st": 80,
+        "opis": "Parsley [Petroselinum crispum] herb 10 to 1 powder extract (RM4626)",
+        "zaloga": 79,
+        "cena": 23.6
+      }
+    ]
+  },
+  {
+    "st": 151,
+    "opis": "Bromelain 2500 GDU/g [Ex-Ananas comosus L.] powder RM7005-A (VitaActives)",
+    "zaloga": 10.9,
+    "cena": 43.4,
+    "kolicina": 25,
+    "totalSubStock": 0,
+    "dejansko": 14.1,
+    "nadomestki": []
+  },
+  {
+    "st": 152,
+    "opis": "Actamide - Black pepper [Piper nigrum] fruit 95% piperine powder extract RM012-A (VitaActives)",
+    "zaloga": 3,
+    "cena": 277,
+    "kolicina": 10,
+    "totalSubStock": 0,
+    "dejansko": 7,
+    "nadomestki": []
+  },
+  {
+    "st": 155,
+    "opis": "Fenugreek Extract (AlpineGroup)",
+    "zaloga": 50,
+    "cena": 25.2,
+    "kolicina": 75,
+    "totalSubStock": 0,
+    "dejansko": 25,
+    "nadomestki": []
+  },
+  {
+    "st": 156,
+    "opis": "Magnesium Stearate (Vegetable) (MOSSELMAN)",
+    "zaloga": 3.70835,
+    "cena": 5.99527,
+    "kolicina": 25,
+    "totalSubStock": 449.775,
+    "dejansko": 0,
+    "nadomestki": [
+      {
+        "st": 32,
+        "opis": "Magnesium Stearate [Vegetable] (Vita Actives)RM465",
+        "zaloga": 449.775,
+        "cena": 4.14
+      }
+    ]
+  },
+  {
+    "st": 157,
+    "opis": "Ashwaganda Extact (7% withanolides)  (AlpineGroup)",
+    "zaloga": 50,
+    "cena": 53.2,
+    "kolicina": 75,
+    "totalSubStock": 0,
+    "dejansko": 25,
+    "nadomestki": []
+  },
+  {
+    "st": 159,
+    "opis": "Black Maca [Lepidium meyenii Walp.] RM4336 (VitaActives)",
+    "zaloga": 5,
+    "cena": 0,
+    "kolicina": 10,
+    "totalSubStock": 0,
+    "dejansko": 5,
+    "nadomestki": []
+  },
+  {
+    "st": 160,
+    "opis": "Suma [Pfaffia Paniculata] root 10 to 1 powder extract RM5201 (VitaActives)",
+    "zaloga": 5,
+    "cena": 190,
+    "kolicina": 10,
+    "totalSubStock": 0,
+    "dejansko": 5,
+    "nadomestki": []
+  },
+  {
+    "st": 161,
+    "opis": "D-Aspartic acid powder RM048 (VitaActives)",
+    "zaloga": 50,
+    "cena": 9.7,
+    "kolicina": 50,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 162,
+    "opis": "Boron bisglycinate [3.5% B] powder RM2005 (VitaActives)",
+    "zaloga": 5,
+    "cena": 101.1,
+    "kolicina": 10,
+    "totalSubStock": 0,
+    "dejansko": 5,
+    "nadomestki": []
+  },
+  {
+    "st": 163,
+    "opis": "Red Ginseng Extract (10% ginsenosides) (AlpineGroup)",
+    "zaloga": 25,
+    "cena": 35.2,
+    "kolicina": 25,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 164,
+    "opis": "Shilajit Extract (AlpineGroup)",
+    "zaloga": 25,
+    "cena": 35,
+    "kolicina": 25,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 165,
+    "opis": "Tribulus Terrestris Extract (90% saponins)  (AlpineGorup)",
+    "zaloga": 25,
+    "cena": 19.5,
+    "kolicina": 25,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 167,
+    "opis": "Magnesium L-Aspartate powder VA RM2056 (VitaActives)",
+    "zaloga": 50,
+    "cena": 11.8,
+    "kolicina": 25,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 179,
+    "opis": "Cordyceps Sinensis Extract 34-19 (Alpine)",
+    "zaloga": 361,
+    "cena": 0,
+    "kolicina": 400,
+    "totalSubStock": 4,
+    "dejansko": 35,
+    "nadomestki": [
+      {
+        "st": 68,
+        "opis": "00123  Cordyceps 7% Cordiceptic Acid extract powder (Alpine Nutrition)",
+        "zaloga": 4,
+        "cena": 30.3
+      }
+    ]
+  },
+  {
+    "st": 182,
+    "opis": "LIME POWDER FLAVOUR SD NATURAL 221620 (Frutol)",
+    "zaloga": 119.78,
+    "cena": 23.5,
+    "kolicina": 125,
+    "totalSubStock": 0,
+    "dejansko": 5.219999999999999,
+    "nadomestki": []
+  },
+  {
+    "st": 184,
+    "opis": "ARTICHOKE EXTRACT 2-5% CYNARINE 88170 (Frutol)",
+    "zaloga": 50,
+    "cena": 28,
+    "kolicina": 25,
+    "totalSubStock": 54,
+    "dejansko": 0,
+    "nadomestki": [
+      {
+        "st": 82,
+        "opis": "Artichoke [Cynara scolymus L] leaf 5% Cynarin [UV] powder extract (RM1293)",
+        "zaloga": 54,
+        "cena": 62.25
+      }
+    ]
+  },
+  {
+    "st": 188,
+    "opis": "DANDELION ROOT 10-1 DRY EXTRACT (Alpine)",
+    "zaloga": 50,
+    "cena": 0,
+    "kolicina": 50,
+    "totalSubStock": 3,
+    "dejansko": 0,
+    "nadomestki": [
+      {
+        "st": 52,
+        "opis": "DANDELION ROOT 10-1 DRY EXTRAC (Vita Actives) RM4770",
+        "zaloga": 3,
+        "cena": 25.5
+      }
+    ]
+  },
+  {
+    "st": 190,
+    "opis": "Spirulina Powder 26-4 (Alpine)",
+    "zaloga": 20,
+    "cena": 0,
+    "kolicina": 25,
+    "totalSubStock": 0,
+    "dejansko": 5,
+    "nadomestki": []
+  },
+  {
+    "st": 191,
+    "opis": "Japanese sophora extract-Quercetin 68-19 (Alpine)",
+    "zaloga": 50,
+    "cena": 0,
+    "kolicina": 25,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 192,
+    "opis": "Black Elderberry Extract 69-19 (Alpine)",
+    "zaloga": 50,
+    "cena": 0,
+    "kolicina": 50,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 193,
+    "opis": "SODIUM BICARBONATE WITHOUT ACA (Palconutrifit)",
+    "zaloga": 2500,
+    "cena": 0,
+    "kolicina": 1100,
+    "totalSubStock": 81.34,
+    "dejansko": 0,
+    "nadomestki": [
+      {
+        "st": 75,
+        "opis": "Sodium bicarbonate (BICAR FOOOD)  88085 FRUTOL",
+        "zaloga": 81.34,
+        "cena": 1.2
+      }
+    ]
+  },
+  {
+    "st": 195,
+    "opis": "Calcium Citrat (Schmidt Pharma)",
+    "zaloga": 0,
+    "cena": 0,
+    "kolicina": 375,
+    "totalSubStock": 0,
+    "dejansko": 375,
+    "nadomestki": []
+  },
+  {
+    "st": 60000,
+    "opis": "Black tea 222568 (FRUTOL)",
+    "zaloga": 27.90986,
+    "cena": 22,
+    "kolicina": 10,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 60001,
+    "opis": "Lemon 220001 (FRUTOL)",
+    "zaloga": 18.28989,
+    "cena": 16.5,
+    "kolicina": 20,
+    "totalSubStock": 0,
+    "dejansko": 1.7101100000000002,
+    "nadomestki": []
+  },
+  {
+    "st": 60002,
+    "opis": "Banana (221545 (FRUTOL)",
+    "zaloga": 10,
+    "cena": 15,
+    "kolicina": 10,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 60003,
+    "opis": "Caramel 221503 (FRUTOL)",
+    "zaloga": 10,
+    "cena": 15.5,
+    "kolicina": 10,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 60004,
+    "opis": "Peach 221549 (FRUTOL)",
+    "zaloga": 20,
+    "cena": 15.1,
+    "kolicina": 10,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 60007,
+    "opis": "Green Apple 222072 (FRTOL)",
+    "zaloga": 10,
+    "cena": 16.1,
+    "kolicina": 10,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 60008,
+    "opis": "Lemon Lime 222180 (FRUTOL)",
+    "zaloga": 161.851,
+    "cena": 17.2,
+    "kolicina": 60,
+    "totalSubStock": 0,
+    "dejansko": 0,
+    "nadomestki": []
+  },
+  {
+    "st": 60010,
+    "opis": "Apricot flavour 222074 (FRUTOL)",
+    "zaloga": 0,
+    "cena": 0,
+    "kolicina": 10,
+    "totalSubStock": 0,
+    "dejansko": 10,
+    "nadomestki": []
+  },
+  {
+    "st": 80014,
+    "opis": "Cps HX HPMC \"00\" transparent 105mg (ACG)",
+    "zaloga": 2100,
+    "cena": 0.01,
+    "kolicina": 1500000,
+    "totalSubStock": 0,
+    "dejansko": 1497900,
+    "nadomestki": []
+  },
+  {
+    "st": 80016,
+    "opis": "A1529 HPMC#0 98mg Capsules (Pharmavit)_new",
+    "zaloga": 7188.5,
+    "cena": 0.0026,
+    "kolicina": 4050000,
+    "totalSubStock": 0,
+    "dejansko": 4042811.5,
+    "nadomestki": []
+  },
+  {
+    "st": 80018,
+    "opis": "A1528 HPMC#00 124mg Capsules (Pharmavit)_new",
+    "zaloga": 8591.02,
+    "cena": 0.00285,
+    "kolicina": 8070000,
+    "totalSubStock": 0,
+    "dejansko": 8061408.98,
+    "nadomestki": []
+  }
+]

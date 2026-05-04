@@ -14,3 +14,36 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Returns all materials with stock, price, required quantity, substitutes, and actual order quantity
+ * @summary Get all materials with procurement overview
+ */
+export const GetMaterialsResponseItem = zod.object({
+  st: zod.union([zod.string(), zod.number()]).describe("Material number"),
+  opis: zod.string().describe("Material description"),
+  zaloga: zod.number().describe("Current stock of base material"),
+  cena: zod.number().describe("Purchase price per unit"),
+  kolicina: zod.number().describe("Total quantity required (from planning)"),
+  totalSubStock: zod
+    .number()
+    .describe("Sum of all substitute stock quantities"),
+  dejansko: zod
+    .number()
+    .describe(
+      "Actual quantity to order = max(0, kolicina - zaloga - totalSubStock)",
+    ),
+  nadomestki: zod
+    .array(
+      zod.object({
+        st: zod
+          .union([zod.string(), zod.number()])
+          .describe("Substitute material number"),
+        opis: zod.string().describe("Substitute description"),
+        zaloga: zod.number().describe("Substitute stock quantity"),
+        cena: zod.number().describe("Substitute purchase price"),
+      }),
+    )
+    .describe("List of substitute materials"),
+});
+export const GetMaterialsResponse = zod.array(GetMaterialsResponseItem);
