@@ -29,6 +29,10 @@ type Material = {
   nadomestki: Substitute[];
 };
 
+function fmtSt(st: string | number) {
+  return String(st).padStart(6, "0");
+}
+
 function fmt(n: number, decimals = 2) {
   if (n === 0) return "0";
   return n.toLocaleString("sl-SI", { minimumFractionDigits: 0, maximumFractionDigits: decimals });
@@ -94,7 +98,7 @@ function SubstitutesDropdown({ nadomestki }: { nadomestki: Substitute[] }) {
             <tbody>
               {nadomestki.map((sub, i) => (
                 <tr key={i} className="border-b border-border/50 last:border-0 hover:bg-muted/50 transition-colors">
-                  <td className="px-3 py-1.5 font-mono text-muted-foreground">{sub.st}</td>
+                  <td className="px-3 py-1.5 font-mono text-muted-foreground">{fmtSt(sub.st)}</td>
                   <td className="px-3 py-1.5 text-foreground max-w-xs">{sub.opis}</td>
                   <td className="px-3 py-1.5 text-right font-medium">
                     {sub.zaloga > 0 ? (
@@ -139,7 +143,7 @@ export default function MaterialsPage() {
       accessorKey: "st",
       header: "Št.",
       size: 70,
-      cell: info => <span className="font-mono text-xs text-muted-foreground">{String(info.getValue())}</span>,
+      cell: info => <span className="font-mono text-xs text-muted-foreground">{fmtSt(info.getValue() as string | number)}</span>,
     },
     {
       accessorKey: "opis",
