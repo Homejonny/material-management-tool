@@ -397,11 +397,11 @@ export default function MaterialsPage() {
 
         {/* Table */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 {table.getHeaderGroups().map(hg => (
-                  <tr key={hg.id} className="border-b border-border bg-muted/40">
+                  <tr key={hg.id} className="border-b border-border bg-muted/95 backdrop-blur-sm">
                     {hg.headers.map(header => (
                       <th
                         key={header.id}
