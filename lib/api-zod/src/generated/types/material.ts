@@ -8,20 +8,12 @@
 import type { Substitute } from "./substitute";
 
 export interface Material {
-  /** Material number */
   st: string | number;
-  /** Material description */
   opis: string;
-  /** Current stock of base material */
   zaloga: number;
-  /** Purchase price per unit */
   cena: number;
-  /** Total quantity required (from planning) */
   kolicina: number;
-  /** Sum of all substitute stock quantities */
   totalSubStock: number;
-  /** Actual quantity to order = max(0, kolicina - zaloga - totalSubStock) */
   dejansko: number;
-  /** List of substitute materials */
   nadomestki: Substitute[];
 }

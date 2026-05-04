@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useGetMaterials } from "@workspace/api-client-react";
+import { PresenceBar, NameDialog, usePresence } from "@/components/PresenceBar";
 import {
   useReactTable,
   getCoreRowModel,
@@ -192,6 +193,7 @@ function SortIcon({ sorted }: { sorted: false | "asc" | "desc" }) {
 
 export default function MaterialsPage() {
   const { data: materials, isLoading, isError } = useGetMaterials();
+  const { name, confirmName } = usePresence();
   const [sorting, setSorting] = useState<SortingState>([{ id: "st", desc: false }]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [filterMode, setFilterMode] = useState<"all" | "narociti" | "pokrito">("all");
@@ -327,13 +329,17 @@ export default function MaterialsPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {!name && <NameDialog onConfirm={confirmName} />}
       <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-6">
         {/* Header */}
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Pregled nabave materialov</h1>
-          <p className="text-muted-foreground text-sm">
-            Formula: Zaloga osnovnega materiala + Zaloge nadomestkov &minus; Potrebna količina = Dejansko za naročiti
-          </p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">Pregled nabave materialov</h1>
+            <p className="text-muted-foreground text-sm">
+              Formula: Zaloga osnovnega materiala + Zaloge nadomestkov &minus; Potrebna količina = Dejansko za naročiti
+            </p>
+          </div>
+          {name && <PresenceBar name={name} />}
         </div>
 
         {/* KPI Cards */}

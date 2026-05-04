@@ -8,7 +8,6 @@
 import * as zod from "zod";
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
@@ -16,34 +15,48 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
- * Returns all materials with stock, price, required quantity, substitutes, and actual order quantity
  * @summary Get all materials with procurement overview
  */
 export const GetMaterialsResponseItem = zod.object({
-  st: zod.union([zod.string(), zod.number()]).describe("Material number"),
-  opis: zod.string().describe("Material description"),
-  zaloga: zod.number().describe("Current stock of base material"),
-  cena: zod.number().describe("Purchase price per unit"),
-  kolicina: zod.number().describe("Total quantity required (from planning)"),
-  totalSubStock: zod
-    .number()
-    .describe("Sum of all substitute stock quantities"),
-  dejansko: zod
-    .number()
-    .describe(
-      "Actual quantity to order = max(0, kolicina - zaloga - totalSubStock)",
-    ),
-  nadomestki: zod
-    .array(
-      zod.object({
-        st: zod
-          .union([zod.string(), zod.number()])
-          .describe("Substitute material number"),
-        opis: zod.string().describe("Substitute description"),
-        zaloga: zod.number().describe("Substitute stock quantity"),
-        cena: zod.number().describe("Substitute purchase price"),
-      }),
-    )
-    .describe("List of substitute materials"),
+  st: zod.union([zod.string(), zod.number()]),
+  opis: zod.string(),
+  zaloga: zod.number(),
+  cena: zod.number(),
+  kolicina: zod.number(),
+  totalSubStock: zod.number(),
+  dejansko: zod.number(),
+  nadomestki: zod.array(
+    zod.object({
+      st: zod.union([zod.string(), zod.number()]),
+      opis: zod.string(),
+      zaloga: zod.number(),
+      cena: zod.number(),
+    }),
+  ),
 });
 export const GetMaterialsResponse = zod.array(GetMaterialsResponseItem);
+
+/**
+ * @summary Send a heartbeat to register as active
+ */
+export const PresenceHeartbeatBody = zod.object({
+  clientId: zod
+    .string()
+    .describe("Unique client identifier (stored in localStorage)"),
+  name: zod.string().describe("Display name of the user"),
+});
+
+export const PresenceHeartbeatResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Get list of currently active users
+ */
+export const GetActiveUsersResponseItem = zod.object({
+  clientId: zod.string(),
+  name: zod.string(),
+  lastSeen: zod.coerce.date(),
+  color: zod.string(),
+});
+export const GetActiveUsersResponse = zod.array(GetActiveUsersResponseItem);

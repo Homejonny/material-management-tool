@@ -12,13 +12,14 @@ tags:
     description: Health operations
   - name: materials
     description: Material procurement operations
+  - name: presence
+    description: Real-time user presence
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -31,7 +32,6 @@ paths:
       operationId: getMaterials
       tags: [materials]
       summary: Get all materials with procurement overview
-      description: Returns all materials with stock, price, required quantity, substitutes, and actual order quantity
       responses:
         "200":
           description: List of materials
@@ -41,6 +41,38 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Material"
+  /presence/heartbeat:
+    post:
+      operationId: presenceHeartbeat
+      tags: [presence]
+      summary: Send a heartbeat to register as active
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HeartbeatRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HeartbeatResponse"
+  /presence/active:
+    get:
+      operationId: getActiveUsers
+      tags: [presence]
+      summary: Get list of currently active users
+      responses:
+        "200":
+          description: Active users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActiveUser"
 components:
   schemas:
     HealthStatus:
@@ -50,6 +82,42 @@ components:
           type: string
       required:
         - status
+    HeartbeatRequest:
+      type: object
+      properties:
+        clientId:
+          type: string
+          description: Unique client identifier (stored in localStorage)
+        name:
+          type: string
+          description: Display name of the user
+      required:
+        - clientId
+        - name
+    HeartbeatResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required:
+        - ok
+    ActiveUser:
+      type: object
+      properties:
+        clientId:
+          type: string
+        name:
+          type: string
+        lastSeen:
+          type: string
+          format: date-time
+        color:
+          type: string
+      required:
+        - clientId
+        - name
+        - lastSeen
+        - color
     Substitute:
       type: object
       properties:
@@ -57,16 +125,12 @@ components:
           oneOf:
             - type: string
             - type: number
-          description: Substitute material number
         opis:
           type: string
-          description: Substitute description
         zaloga:
           type: number
-          description: Substitute stock quantity
         cena:
           type: number
-          description: Substitute purchase price
       required:
         - st
         - opis
@@ -79,30 +143,22 @@ components:
           oneOf:
             - type: string
             - type: number
-          description: Material number
         opis:
           type: string
-          description: Material description
         zaloga:
           type: number
-          description: Current stock of base material
         cena:
           type: number
-          description: Purchase price per unit
         kolicina:
           type: number
-          description: Total quantity required (from planning)
         totalSubStock:
           type: number
-          description: Sum of all substitute stock quantities
         dejansko:
           type: number
-          description: Actual quantity to order = max(0, kolicina - zaloga - totalSubStock)
         nadomestki:
           type: array
           items:
             $ref: "#/components/schemas/Substitute"
-          description: List of substitute materials
       required:
         - st
         - opis

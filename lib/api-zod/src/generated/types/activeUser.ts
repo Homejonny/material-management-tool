@@ -6,9 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface Substitute {
-  st: string | number;
-  opis: string;
-  zaloga: number;
-  cena: number;
+export interface ActiveUser {
+  clientId: string;
+  name: string;
+  lastSeen: Date;
+  color: string;
 }

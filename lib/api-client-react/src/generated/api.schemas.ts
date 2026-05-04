@@ -9,32 +9,38 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface HeartbeatRequest {
+  /** Unique client identifier (stored in localStorage) */
+  clientId: string;
+  /** Display name of the user */
+  name: string;
+}
+
+export interface HeartbeatResponse {
+  ok: boolean;
+}
+
+export interface ActiveUser {
+  clientId: string;
+  name: string;
+  lastSeen: string;
+  color: string;
+}
+
 export interface Substitute {
-  /** Substitute material number */
   st: string | number;
-  /** Substitute description */
   opis: string;
-  /** Substitute stock quantity */
   zaloga: number;
-  /** Substitute purchase price */
   cena: number;
 }
 
 export interface Material {
-  /** Material number */
   st: string | number;
-  /** Material description */
   opis: string;
-  /** Current stock of base material */
   zaloga: number;
-  /** Purchase price per unit */
   cena: number;
-  /** Total quantity required (from planning) */
   kolicina: number;
-  /** Sum of all substitute stock quantities */
   totalSubStock: number;
-  /** Actual quantity to order = max(0, kolicina - zaloga - totalSubStock) */
   dejansko: number;
-  /** List of substitute materials */
   nadomestki: Substitute[];
 }
