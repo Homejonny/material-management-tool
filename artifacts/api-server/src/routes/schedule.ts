@@ -10,6 +10,8 @@ const router = Router();
 
 const ACTIVE_STATUSES = new Set(["Načrtovano", "Potrjen", "Izdano", "Čvrsto načrtovano"]);
 
+const EXCLUDED_ITEMS = new Set(["000180"]);
+
 // UoM conversion: ProdOrderComponents.Remaining_Quantity is always in base KOS/CPS/KG.
 // For items stored per 1000 units, divide RemQty by this factor to match Item.InventoryField units.
 const UOM_FACTORS: Record<string, number> = {
@@ -146,7 +148,7 @@ export async function getScheduleLines(log: (m: string) => void): Promise<Schedu
   };
 
   const lines: ScheduleLine[] = prodComps
-    .filter((r) => ACTIVE_STATUSES.has(r.Status) && r.Item_No?.trim() && r.Remaining_Quantity > 0)
+    .filter((r) => ACTIVE_STATUSES.has(r.Status) && r.Item_No?.trim() && r.Remaining_Quantity > 0 && !EXCLUDED_ITEMS.has(r.Item_No.trim()))
     .map((r) => {
       const key = r.Item_No.trim();
       const bcItem = itemsMap.get(key);

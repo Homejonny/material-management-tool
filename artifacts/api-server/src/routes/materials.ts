@@ -10,6 +10,8 @@ const router = Router();
 
 const ACTIVE_STATUSES = new Set(["Načrtovano", "Potrjen", "Izdano", "Čvrsto načrtovano"]);
 
+const EXCLUDED_ITEMS = new Set(["000180"]);
+
 // UoM conversion: ProdOrderComponents.Remaining_Quantity is always in base KOS/CPS/KG.
 // For items stored per 1000 units, divide RemQty by this factor to match Item.InventoryField units.
 const UOM_FACTORS: Record<string, number> = {
@@ -90,7 +92,7 @@ async function fetchProdNeeds(itemsMap: Map<string, BcItem>): Promise<Map<string
   const map = new Map<string, { qty: number; earliestDue: string }>();
   for (const r of rows) {
     const key = r.Item_No?.trim();
-    if (!key || !ACTIVE_STATUSES.has(r.Status) || r.Remaining_Quantity <= 0) continue;
+    if (!key || !ACTIVE_STATUSES.has(r.Status) || r.Remaining_Quantity <= 0 || EXCLUDED_ITEMS.has(key)) continue;
 
     const uom = itemsMap.get(key)?.Base_Unit_of_Measure ?? "";
     const factor = UOM_FACTORS[uom] ?? 1;
