@@ -22,6 +22,8 @@ export const GetMaterialsResponseItem = zod.object({
   opis: zod.string(),
   zaloga: zod.number(),
   cena: zod.number(),
+  uom: zod.string(),
+  replenishment: zod.string(),
   kolicina: zod.number(),
   totalSubStock: zod.number(),
   dejansko: zod.number(),

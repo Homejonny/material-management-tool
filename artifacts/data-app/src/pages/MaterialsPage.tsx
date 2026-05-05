@@ -27,6 +27,7 @@ type Material = {
   zaloga: number;
   cena: number;
   uom: string;
+  replenishment: string;
   kolicina: number;
   totalSubStock: number;
   dejansko: number;
@@ -202,14 +203,16 @@ export default function MaterialsPage() {
   const [sorting, setSorting] = useState<SortingState>([{ id: "cena", desc: true }]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [filterMode, setFilterMode] = useState<"all" | "narociti" | "pokrito">("all");
+  const [reprFilter, setReprFilter] = useState<"all" | "Nabava" | "Delovni nalog">("Nabava");
 
   const filteredData = useMemo(() => {
     if (!materials) return [];
     let data = materials as Material[];
+    if (reprFilter !== "all") data = data.filter(m => m.replenishment === reprFilter);
     if (filterMode === "narociti") data = data.filter(m => m.dejansko > 0);
     if (filterMode === "pokrito") data = data.filter(m => m.dejansko === 0);
     return data;
-  }, [materials, filterMode]);
+  }, [materials, filterMode, reprFilter]);
 
   const columns = useMemo<ColumnDef<Material>[]>(() => [
     {
@@ -418,42 +421,67 @@ export default function MaterialsPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="search"
-              placeholder="Iskanje po opisu, šifri..."
-              value={globalFilter}
-              onChange={e => setGlobalFilter(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="search"
+                placeholder="Iskanje po opisu, šifri..."
+                value={globalFilter}
+                onChange={e => setGlobalFilter(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+
+            {/* Replenishment filter */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">Obnova zaloge:</span>
+              {(["all", "Nabava", "Delovni nalog"] as const).map(r => (
+                <button
+                  key={r}
+                  onClick={() => setReprFilter(r)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    reprFilter === r
+                      ? r === "Delovni nalog"
+                        ? "bg-purple-600 text-white"
+                        : "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  {r === "all" ? "Vse" : r === "Nabava" ? "Nabava" : "Polizdelki"}
+                </button>
+              ))}
+            </div>
+
+            {/* Status filter */}
+            <div className="flex gap-1.5">
+              {(["all", "narociti", "pokrito"] as const).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => setFilterMode(mode)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    filterMode === mode
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  {mode === "all" ? "Vsi" : mode === "narociti" ? "Za naročiti" : "Pokrito"}
+                </button>
+              ))}
+            </div>
+
+            <p className="text-xs text-muted-foreground ml-auto">
+              {table.getFilteredRowModel().rows.length} / {(materials as Material[])?.length ?? 0} materialov
+            </p>
+            <button
+              onClick={() => exportToExcel(materials as Material[])}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Izvozi v Excel
+            </button>
           </div>
-          <div className="flex gap-1.5">
-            {(["all", "narociti", "pokrito"] as const).map(mode => (
-              <button
-                key={mode}
-                onClick={() => setFilterMode(mode)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  filterMode === mode
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
-                }`}
-              >
-                {mode === "all" ? "Vsi" : mode === "narociti" ? "Za naročiti" : "Pokrito"}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground ml-auto">
-            {table.getFilteredRowModel().rows.length} / {(materials as Material[])?.length ?? 0} materialov
-          </p>
-          <button
-            onClick={() => exportToExcel(materials as Material[])}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            Izvozi v Excel
-          </button>
         </div>
 
         {/* Table */}

@@ -22,6 +22,7 @@ type BcItem = {
   InventoryField: number;
   Unit_Cost: number;
   Base_Unit_of_Measure: string;
+  Replenishment_System: string;
 };
 
 type ProdComp = {
@@ -40,6 +41,7 @@ export type Material = {
   zaloga: number;
   cena: number;
   uom: string;
+  replenishment: string;
   kolicina: number;
   totalSubStock: number;
   dejansko: number;
@@ -75,7 +77,7 @@ async function paginatedFetch<T>(url: string): Promise<T[]> {
 
 async function fetchBcItems(): Promise<Map<string, BcItem>> {
   const rows = await paginatedFetch<BcItem>(
-    `${BASE_URL}/Item?$select=No,Description,InventoryField,Unit_Cost,Base_Unit_of_Measure&$top=500`
+    `${BASE_URL}/Item?$select=No,Description,InventoryField,Unit_Cost,Base_Unit_of_Measure,Replenishment_System&$top=500`
   );
   return new Map(rows.map((r) => [r.No.trim(), r]));
 }
@@ -126,6 +128,7 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
     const zaloga = bcItem?.InventoryField ?? 0;
     const cena = bcItem?.Unit_Cost ?? 0;
     const uom = bcItem?.Base_Unit_of_Measure ?? "";
+    const replenishment = bcItem?.Replenishment_System ?? "";
     const opis = bcItem?.Description ?? itemNo;
 
     const subNos = substitutesMap[itemNo] ?? [];
@@ -143,7 +146,7 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
     const totalSubStock = nadomestki.reduce((s, n) => s + n.zaloga, 0);
     const dejansko = Math.max(0, need.qty - zaloga - totalSubStock);
 
-    materials.push({ st: itemNo, opis, zaloga, cena, uom, kolicina: need.qty, totalSubStock, dejansko, nadomestki });
+    materials.push({ st: itemNo, opis, zaloga, cena, uom, replenishment, kolicina: need.qty, totalSubStock, dejansko, nadomestki });
   }
 
   // Default sort: price descending (most expensive first)

@@ -235,6 +235,10 @@ components:
           type: number
         cena:
           type: number
+        uom:
+          type: string
+        replenishment:
+          type: string
         kolicina:
           type: number
         totalSubStock:
@@ -250,6 +254,8 @@ components:
         - opis
         - zaloga
         - cena
+        - uom
+        - replenishment
         - kolicina
         - totalSubStock
         - dejansko

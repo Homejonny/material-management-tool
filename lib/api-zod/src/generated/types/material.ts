@@ -12,6 +12,8 @@ export interface Material {
   opis: string;
   zaloga: number;
   cena: number;
+  uom: string;
+  replenishment: string;
   kolicina: number;
   totalSubStock: number;
   dejansko: number;
