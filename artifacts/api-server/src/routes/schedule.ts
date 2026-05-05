@@ -35,6 +35,7 @@ export type ScheduleLine = {
   vendor_name: string;
   lead_time: string;
   lead_time_days: number;
+  replenishment: string;
 };
 
 type BcItem = {
@@ -45,6 +46,7 @@ type BcItem = {
   Base_Unit_of_Measure: string;
   Vendor_No: string;
   Lead_Time_Calculation: string;
+  Replenishment_System: string;
 };
 
 type BcVendor = { No: string; Name: string; Lead_Time_Calculation: string };
@@ -101,7 +103,7 @@ function parseLeadTimeDays(lt: string): number {
 
 async function fetchBcItemsFull(): Promise<Map<string, BcItem>> {
   const rows = await paginatedFetch<BcItem>(
-    `${BASE_URL}/Item?$select=No,Description,InventoryField,Unit_Cost,Base_Unit_of_Measure,Vendor_No,Lead_Time_Calculation&$top=500`
+    `${BASE_URL}/Item?$select=No,Description,InventoryField,Unit_Cost,Base_Unit_of_Measure,Vendor_No,Lead_Time_Calculation,Replenishment_System&$top=500`
   );
   return new Map(rows.map((r) => [r.No.trim(), r]));
 }
@@ -191,6 +193,7 @@ export async function getScheduleLines(log: (m: string) => void): Promise<Schedu
         vendor_name: vendor?.Name ?? (vendorNo ? vendorNo : "Ni določen"),
         lead_time: rawLT || "—",
         lead_time_days: ltDays,
+        replenishment: bcItem?.Replenishment_System ?? "",
       };
     })
     .sort((a, b) => {

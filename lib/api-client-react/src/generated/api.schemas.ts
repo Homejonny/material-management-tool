@@ -44,6 +44,7 @@ export interface ScheduleLine {
   vendor_name: string;
   lead_time: string;
   lead_time_days: number;
+  replenishment?: string;
 }
 
 export interface Substitute {

@@ -39,6 +39,7 @@ type ScheduleLine = {
   vendor_name: string;
   lead_time: string;
   lead_time_days: number;
+  replenishment: string;
 };
 
 function fmt(n: number, dec = 2) {
@@ -132,17 +133,19 @@ export default function SchedulePage() {
   const [globalFilter, setGlobalFilter] = useState("");
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [showOnlyUncovered, setShowOnlyUncovered] = useState(false);
+  const [reprFilter, setReprFilter] = useState<"all" | "Nabava" | "Delovni nalog">("Nabava");
 
   const lines = (rawLines ?? []) as ScheduleLine[];
 
   const filteredData = useMemo(() => {
     let data = lines;
+    if (reprFilter !== "all") data = data.filter((r) => r.replenishment === reprFilter);
     if (showOnlyUncovered) data = data.filter((r) => r.total_available < r.remaining_qty);
     if (filterMode === "preteklo") data = data.filter((r) => r.urgency_days < 0);
     else if (filterMode === "teden") data = data.filter((r) => r.urgency_days >= 0 && r.urgency_days <= 7);
     else if (filterMode === "mesec") data = data.filter((r) => r.urgency_days >= 0 && r.urgency_days <= 30);
     return data;
-  }, [lines, showOnlyUncovered, filterMode]);
+  }, [lines, showOnlyUncovered, filterMode, reprFilter]);
 
   const stats = useMemo(() => {
     const all = lines;
@@ -402,6 +405,26 @@ export default function SchedulePage() {
             placeholder="Išči material, nalog, dobavitelja..."
             className="pl-9 pr-4 h-9 w-full rounded-md border border-input bg-background text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
           />
+        </div>
+
+        {/* Replenishment filter */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Obnova:</span>
+          {(["all", "Nabava", "Delovni nalog"] as const).map((r) => (
+            <button
+              key={r}
+              onClick={() => setReprFilter(r)}
+              className={`h-9 px-3 rounded-md text-sm font-medium transition-colors ${
+                reprFilter === r
+                  ? r === "Delovni nalog"
+                    ? "bg-purple-600 text-white"
+                    : "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
+              }`}
+            >
+              {r === "all" ? "Vse" : r === "Nabava" ? "Nabava" : "Polizdelki"}
+            </button>
+          ))}
         </div>
 
         <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-muted-foreground">

@@ -66,6 +66,7 @@ export const GetScheduleResponseItem = zod.object({
   vendor_name: zod.string(),
   lead_time: zod.string(),
   lead_time_days: zod.number(),
+  replenishment: zod.string().optional(),
 });
 export const GetScheduleResponse = zod.array(GetScheduleResponseItem);
 

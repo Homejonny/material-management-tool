@@ -187,6 +187,8 @@ components:
           type: string
         lead_time_days:
           type: number
+        replenishment:
+          type: string
       required:
         - item_no
         - opis
