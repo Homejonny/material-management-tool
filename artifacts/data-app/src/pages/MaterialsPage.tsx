@@ -271,9 +271,9 @@ export default function MaterialsPage() {
     },
   });
 
-  const toOrder = useMemo(() => (materials as Material[] | undefined)?.filter(m => m.dejansko > 0).length ?? 0, [materials]);
-  const covered = useMemo(() => (materials as Material[] | undefined)?.filter(m => m.dejansko === 0).length ?? 0, [materials]);
-  const totalOrderValue = useMemo(() => (materials as Material[] | undefined)?.reduce((s, m) => s + m.dejansko * m.cena, 0) ?? 0, [materials]);
+  const toOrder = useMemo(() => filteredData.filter(m => m.dejansko > 0).length, [filteredData]);
+  const covered = useMemo(() => filteredData.filter(m => m.dejansko === 0).length, [filteredData]);
+  const totalOrderValue = useMemo(() => filteredData.reduce((s, m) => s + m.dejansko * m.cena, 0), [filteredData]);
 
   if (isLoading) {
     return (
@@ -339,7 +339,7 @@ export default function MaterialsPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="rounded-xl border border-border bg-card p-4 space-y-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Skupaj materialov</p>
-            <p className="text-2xl font-bold text-foreground">{(materials as Material[])?.length ?? 0}</p>
+            <p className="text-2xl font-bold text-foreground">{filteredData.length}</p>
           </div>
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 space-y-1">
             <p className="text-xs font-medium text-red-600 uppercase tracking-wide">Za naročiti</p>
