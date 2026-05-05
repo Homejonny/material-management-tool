@@ -8,17 +8,6 @@ const __dirname = dirname(__filename);
 
 const router = Router();
 
-type StaticMaterial = {
-  st: string | number;
-  opis: string;
-  zaloga: number;
-  cena: number;
-  kolicina: number;
-  totalSubStock: number;
-  dejansko: number;
-  nadomestki: Array<{ st: string | number; opis: string; zaloga: number; cena: number }>;
-};
-
 type BcItem = {
   No: string;
   Description: string;
@@ -27,108 +16,143 @@ type BcItem = {
   Substitutes_Exist: boolean;
 };
 
-let staticMaterials: StaticMaterial[] | null = null;
+type PlanningRow = {
+  No: string;
+  Description: string;
+  Quantity: number;
+  Order_Date: string;
+  Due_Date: string;
+  Unit_Cost: number;
+};
 
-function getStaticMaterials(): StaticMaterial[] {
-  if (staticMaterials) return staticMaterials;
-  const dataPath = join(__dirname, "../data/materials.json");
-  const raw = readFileSync(dataPath, "utf-8");
-  staticMaterials = JSON.parse(raw);
-  return staticMaterials!;
+type Material = {
+  st: string;
+  opis: string;
+  zaloga: number;
+  cena: number;
+  kolicina: number;
+  totalSubStock: number;
+  dejansko: number;
+  nadomestki: Array<{ st: string; opis: string; zaloga: number; cena: number }>;
+};
+
+let subsMap: Record<string, string[]> | null = null;
+function getSubstitutesMap(): Record<string, string[]> {
+  if (subsMap) return subsMap;
+  const p = join(__dirname, "../data/substitutes-map.json");
+  subsMap = JSON.parse(readFileSync(p, "utf-8"));
+  return subsMap!;
 }
 
-async function fetchAllBcItems(log: (msg: string) => void): Promise<Map<string, BcItem>> {
-  const baseUrl = process.env.BC_URL;
-  const username = process.env.BC_USERNAME;
-  const password = process.env.BC_PASSWORD;
+const BASE_URL = process.env.BC_URL!;
+function bcAuth(): string {
+  return "Basic " + Buffer.from(`${process.env.BC_USERNAME}:${process.env.BC_PASSWORD}`).toString("base64");
+}
+const BC_HDR = () => ({ Authorization: bcAuth(), Accept: "application/json" });
 
-  if (!baseUrl || !username || !password) {
-    throw new Error("BC credentials not configured (BC_URL, BC_USERNAME, BC_PASSWORD)");
+async function paginatedFetch<T>(url: string): Promise<T[]> {
+  const results: T[] = [];
+  let next: string | null = url;
+  while (next) {
+    const res = await fetch(next, { headers: BC_HDR() });
+    if (!res.ok) throw new Error(`BC ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const json = (await res.json()) as { value: T[]; "@odata.nextLink"?: string };
+    results.push(...json.value);
+    next = json["@odata.nextLink"] ?? null;
   }
-
-  const auth = Buffer.from(`${username}:${password}`).toString("base64");
-  const itemMap = new Map<string, BcItem>();
-  const select = "No,Description,InventoryField,Unit_Cost,Substitutes_Exist";
-
-  let url: string | null =
-    `${baseUrl}/Item?$select=${select}&$top=500`;
-
-  while (url) {
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Basic ${auth}`,
-        Accept: "application/json",
-      },
-    });
-
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`BC API error ${res.status}: ${body.slice(0, 200)}`);
-    }
-
-    const json = (await res.json()) as {
-      value: BcItem[];
-      "@odata.nextLink"?: string;
-    };
-
-    for (const item of json.value) {
-      itemMap.set(item.No.trim(), item);
-    }
-
-    url = json["@odata.nextLink"] ?? null;
-    if (url) log(`Fetched ${itemMap.size} items so far, loading next page...`);
-  }
-
-  log(`Loaded ${itemMap.size} items from Business Central`);
-  return itemMap;
+  return results;
 }
 
-let bcCache: { data: StaticMaterial[]; fetchedAt: number } | null = null;
+async function fetchBcItems(): Promise<Map<string, BcItem>> {
+  const rows = await paginatedFetch<BcItem>(
+    `${BASE_URL}/Item?$select=No,Description,InventoryField,Unit_Cost,Substitutes_Exist&$top=500`
+  );
+  return new Map(rows.map((r) => [r.No.trim(), r]));
+}
+
+// Returns map: itemNo → { totalQty, orderDate, dueDate }
+async function fetchPlanningWorksheet(): Promise<Map<string, { qty: number; orderDate: string; dueDate: string; opis: string }>> {
+  const rows = await paginatedFetch<PlanningRow>(
+    `${BASE_URL}/PlanningWorksheet?$select=No,Description,Quantity,Order_Date,Due_Date,Unit_Cost&$top=500`
+  );
+
+  const map = new Map<string, { qty: number; orderDate: string; dueDate: string; opis: string }>();
+  for (const r of rows) {
+    const key = r.No?.trim();
+    if (!key || r.Quantity <= 0) continue;
+    const existing = map.get(key);
+    if (existing) {
+      existing.qty += r.Quantity;
+      // Keep earliest order date
+      if (r.Order_Date && r.Order_Date < existing.orderDate) existing.orderDate = r.Order_Date;
+      if (r.Due_Date && r.Due_Date < existing.dueDate) existing.dueDate = r.Due_Date;
+    } else {
+      map.set(key, {
+        qty: r.Quantity,
+        orderDate: r.Order_Date ?? "",
+        dueDate: r.Due_Date ?? "",
+        opis: r.Description ?? key,
+      });
+    }
+  }
+  return map;
+}
+
+let bcCache: { data: Material[]; fetchedAt: number } | null = null;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
-async function getMaterialsWithLiveData(log: (msg: string) => void): Promise<StaticMaterial[]> {
-  if (bcCache && Date.now() - bcCache.fetchedAt < CACHE_TTL_MS) {
-    return bcCache.data;
-  }
+export async function getMaterialsWithLiveData(log: (msg: string) => void): Promise<Material[]> {
+  if (bcCache && Date.now() - bcCache.fetchedAt < CACHE_TTL_MS) return bcCache.data;
 
-  const [bcItems, statics] = await Promise.all([
-    fetchAllBcItems(log),
-    Promise.resolve(getStaticMaterials()),
-  ]);
+  log("Fetching BC Items + Planning Worksheet...");
+  const [itemsMap, planningMap] = await Promise.all([fetchBcItems(), fetchPlanningWorksheet()]);
+  log(`BC: ${itemsMap.size} items, ${planningMap.size} planning lines`);
 
-  const merged = statics.map((mat) => {
-    const key = String(mat.st).trim();
-    const live = bcItems.get(key);
+  const substitutesMap = getSubstitutesMap();
 
-    const liveZaloga = live?.InventoryField ?? mat.zaloga;
-    const liveCena = live?.Unit_Cost ?? mat.cena;
+  const materials: Material[] = [];
 
-    const enrichedNadomestki = mat.nadomestki.map((sub) => {
-      const subKey = String(sub.st).trim();
-      const subLive = bcItems.get(subKey);
+  for (const [itemNo, plan] of planningMap) {
+    const bcItem = itemsMap.get(itemNo);
+    const zaloga = bcItem?.InventoryField ?? 0;
+    const cena = bcItem?.Unit_Cost ?? 0;
+    const opis = bcItem?.Description ?? plan.opis;
+
+    const subNos = substitutesMap[itemNo] ?? [];
+    const nadomestki = subNos.map((sNo) => {
+      const sub = itemsMap.get(sNo);
       return {
-        ...sub,
-        zaloga: subLive?.InventoryField ?? sub.zaloga,
-        cena: subLive?.Unit_Cost ?? sub.cena,
-        opis: subLive?.Description ?? sub.opis,
+        st: sNo,
+        opis: sub?.Description ?? sNo,
+        zaloga: sub?.InventoryField ?? 0,
+        cena: sub?.Unit_Cost ?? 0,
       };
     });
 
-    const totalSubStock = enrichedNadomestki.reduce((s, n) => s + n.zaloga, 0);
-    const dejansko = Math.max(0, mat.kolicina - liveZaloga - totalSubStock);
+    const totalSubStock = nadomestki.reduce((s, n) => s + n.zaloga, 0);
+    const dejansko = Math.max(0, plan.qty - zaloga - totalSubStock);
 
-    return {
-      ...mat,
-      zaloga: liveZaloga,
-      cena: liveCena,
-      nadomestki: enrichedNadomestki,
+    materials.push({
+      st: itemNo,
+      opis,
+      zaloga,
+      cena,
+      kolicina: plan.qty,
       totalSubStock,
       dejansko,
-    };
-  });
+      nadomestki,
+    });
+  }
 
-  bcCache = { data: merged, fetchedAt: Date.now() };
-  return merged;
+  // Sort by item number ascending
+  materials.sort((a, b) => a.st.localeCompare(b.st));
+
+  bcCache = { data: materials, fetchedAt: Date.now() };
+  return materials;
+}
+
+export function invalidateMaterialsCache() {
+  bcCache = null;
 }
 
 router.get("/materials", async (req, res) => {
@@ -136,18 +160,18 @@ router.get("/materials", async (req, res) => {
     const data = await getMaterialsWithLiveData((msg) => req.log.info(msg));
     res.json(data);
   } catch (err) {
-    req.log.error({ err }, "Failed to load materials data");
-    res.status(500).json({ error: "Failed to load materials data" });
+    req.log.error({ err }, "Failed to load materials");
+    res.status(500).json({ error: "Failed to load materials" });
   }
 });
 
 router.post("/materials/refresh", async (req, res) => {
-  bcCache = null;
+  invalidateMaterialsCache();
   try {
     const data = await getMaterialsWithLiveData((msg) => req.log.info(msg));
     res.json({ ok: true, count: data.length });
   } catch (err) {
-    req.log.error({ err }, "Failed to refresh materials data");
+    req.log.error({ err }, "Failed to refresh materials");
     res.status(500).json({ error: "Failed to refresh" });
   }
 });
