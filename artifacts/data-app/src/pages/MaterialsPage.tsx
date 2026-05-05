@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useGetMaterials } from "@workspace/api-client-react";
+import { useGetMaterials, useRefreshMaterials } from "@workspace/api-client-react";
 import { PresenceBar, NameDialog, usePresence } from "@/components/PresenceBar";
 import {
   useReactTable,
@@ -10,7 +10,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, Search, ArrowUpDown, ArrowUp, ArrowDown, Package, AlertTriangle, CheckCircle2, Download } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, ArrowUpDown, ArrowUp, ArrowDown, Package, AlertTriangle, CheckCircle2, Download, RefreshCw, Radio } from "lucide-react";
 import * as XLSX from "xlsx";
 
 type Substitute = {
@@ -192,8 +192,11 @@ function SortIcon({ sorted }: { sorted: false | "asc" | "desc" }) {
 }
 
 export default function MaterialsPage() {
-  const { data: materials, isLoading, isError } = useGetMaterials();
+  const { data: materials, isLoading, isError, refetch, dataUpdatedAt } = useGetMaterials();
   const { name, confirmName } = usePresence();
+  const { mutate: refreshMaterials, isPending: isRefreshing } = useRefreshMaterials({
+    mutation: { onSuccess: () => refetch() },
+  });
   const [sorting, setSorting] = useState<SortingState>([{ id: "st", desc: false }]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [filterMode, setFilterMode] = useState<"all" | "narociti" | "pokrito">("all");
@@ -338,8 +341,30 @@ export default function MaterialsPage() {
             <p className="text-muted-foreground text-sm">
               Formula: Zaloga osnovnega materiala + Zaloge nadomestkov &minus; Potrebna količina = Dejansko za naročiti
             </p>
+            <div className="flex items-center gap-2 pt-0.5">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+                <Radio className="w-3 h-3 animate-pulse" />
+                Živi podatki iz Business Central
+              </span>
+              {dataUpdatedAt > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  · osveženo ob {new Date(dataUpdatedAt).toLocaleTimeString("sl-SI")}
+                </span>
+              )}
+            </div>
           </div>
-          {name && <PresenceBar name={name} />}
+          <div className="flex items-center gap-3">
+            {name && <PresenceBar name={name} />}
+            <button
+              onClick={() => refreshMaterials({})}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border border-border bg-card text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+              title="Prisilna osvežitev podatkov iz BC"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              {isRefreshing ? "Osvežujem..." : "Osveži BC"}
+            </button>
+          </div>
         </div>
 
         {/* KPI Cards */}

@@ -44,3 +44,8 @@ export interface Material {
   dejansko: number;
   nadomestki: Substitute[];
 }
+
+export type RefreshMaterials200 = {
+  ok: boolean;
+  count: number;
+};

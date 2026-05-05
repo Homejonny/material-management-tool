@@ -37,6 +37,14 @@ export const GetMaterialsResponseItem = zod.object({
 export const GetMaterialsResponse = zod.array(GetMaterialsResponseItem);
 
 /**
+ * @summary Force refresh of BC live data cache
+ */
+export const RefreshMaterialsResponse = zod.object({
+  ok: zod.boolean(),
+  count: zod.number(),
+});
+
+/**
  * @summary Send a heartbeat to register as active
  */
 export const PresenceHeartbeatBody = zod.object({

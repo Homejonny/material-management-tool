@@ -22,6 +22,7 @@ import type {
   HeartbeatRequest,
   HeartbeatResponse,
   Material,
+  RefreshMaterials200,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -182,6 +183,87 @@ export function useGetMaterials<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Force refresh of BC live data cache
+ */
+export const getRefreshMaterialsUrl = () => {
+  return `/api/materials/refresh`;
+};
+
+export const refreshMaterials = async (
+  options?: RequestInit,
+): Promise<RefreshMaterials200> => {
+  return customFetch<RefreshMaterials200>(getRefreshMaterialsUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRefreshMaterialsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refreshMaterials>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof refreshMaterials>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["refreshMaterials"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof refreshMaterials>>,
+    void
+  > = () => {
+    return refreshMaterials(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RefreshMaterialsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof refreshMaterials>>
+>;
+
+export type RefreshMaterialsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Force refresh of BC live data cache
+ */
+export const useRefreshMaterials = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refreshMaterials>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof refreshMaterials>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getRefreshMaterialsMutationOptions(options));
+};
 
 /**
  * @summary Send a heartbeat to register as active

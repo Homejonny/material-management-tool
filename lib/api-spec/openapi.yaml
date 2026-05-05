@@ -41,6 +41,26 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Material"
+  /materials/refresh:
+    post:
+      operationId: refreshMaterials
+      tags: [materials]
+      summary: Force refresh of BC live data cache
+      responses:
+        "200":
+          description: Refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  count:
+                    type: number
+                required:
+                  - ok
+                  - count
   /presence/heartbeat:
     post:
       operationId: presenceHeartbeat
