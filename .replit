@@ -30,3 +30,9 @@ externalPort = 8081
 [[ports]]
 localPort = 24452
 externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+BC_URL = "https://gmppharma.b-s.si:7058/prodgmppharma/ODataV4/Company('SLO%20OSNOVNO%20PODJETJE')"
+BC_USERNAME = "Marko.Rogelj"
