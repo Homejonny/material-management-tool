@@ -30,6 +30,7 @@ type ScheduleLine = {
   prod_order_no: string;
   status: string;
   remaining_qty: number;
+  uom: string;
   due_date: string;
   urgency_days: number;
   item_stock: number;

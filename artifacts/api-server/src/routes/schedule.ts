@@ -10,12 +10,19 @@ const router = Router();
 
 const ACTIVE_STATUSES = new Set(["Načrtovano", "Potrjen", "Izdano", "Čvrsto načrtovano"]);
 
+// UoM conversion: ProdOrderComponents.Remaining_Quantity is always in base KOS/CPS/KG.
+// For items stored per 1000 units, divide RemQty by this factor to match Item.InventoryField units.
+const UOM_FACTORS: Record<string, number> = {
+  "1000CPS": 1000,
+};
+
 export type ScheduleLine = {
   item_no: string;
   opis: string;
   prod_order_no: string;
   status: string;
   remaining_qty: number;
+  uom: string;
   due_date: string;
   urgency_days: number;
   item_stock: number;
@@ -33,8 +40,8 @@ type BcItem = {
   Description: string;
   InventoryField: number;
   Unit_Cost: number;
+  Base_Unit_of_Measure: string;
   Vendor_No: string;
-  Vendor_Item_No: string;
   Lead_Time_Calculation: string;
 };
 
@@ -92,7 +99,7 @@ function parseLeadTimeDays(lt: string): number {
 
 async function fetchBcItemsFull(): Promise<Map<string, BcItem>> {
   const rows = await paginatedFetch<BcItem>(
-    `${BASE_URL}/Item?$select=No,Description,InventoryField,Unit_Cost,Vendor_No,Lead_Time_Calculation&$top=500`
+    `${BASE_URL}/Item?$select=No,Description,InventoryField,Unit_Cost,Base_Unit_of_Measure,Vendor_No,Lead_Time_Calculation&$top=500`
   );
   return new Map(rows.map((r) => [r.No.trim(), r]));
 }
@@ -128,7 +135,7 @@ export async function getScheduleLines(log: (m: string) => void): Promise<Schedu
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Pre-compute sub stocks per item
+  // Pre-compute sub stocks per item (in item's own UoM)
   const subStockCache = new Map<string, number>();
   const getSubStock = (itemNo: string): number => {
     if (subStockCache.has(itemNo)) return subStockCache.get(itemNo)!;
@@ -143,6 +150,12 @@ export async function getScheduleLines(log: (m: string) => void): Promise<Schedu
     .map((r) => {
       const key = r.Item_No.trim();
       const bcItem = itemsMap.get(key);
+      const uom = bcItem?.Base_Unit_of_Measure ?? "";
+      const factor = UOM_FACTORS[uom] ?? 1;
+
+      // Convert RemQty to item's native UoM (e.g. /1000 for 1000CPS items)
+      const adjustedQty = r.Remaining_Quantity / factor;
+
       const vendorNo = bcItem?.Vendor_No?.trim() ?? "";
       const vendor = vendorNo ? vendorsMap.get(vendorNo) : undefined;
       const rawLT = bcItem?.Lead_Time_Calculation?.trim() || vendor?.Lead_Time_Calculation?.trim() || "";
@@ -164,7 +177,8 @@ export async function getScheduleLines(log: (m: string) => void): Promise<Schedu
         opis: bcItem?.Description ?? r.Description ?? key,
         prod_order_no: r.Prod_Order_No,
         status: r.Status,
-        remaining_qty: r.Remaining_Quantity,
+        remaining_qty: adjustedQty,
+        uom,
         due_date: r.Due_Date ?? "",
         urgency_days: urgencyDays,
         item_stock: itemStock,
@@ -178,7 +192,6 @@ export async function getScheduleLines(log: (m: string) => void): Promise<Schedu
       };
     })
     .sort((a, b) => {
-      // Sort by due_date ASC, then item_no
       if (a.due_date !== b.due_date) return a.due_date.localeCompare(b.due_date);
       return a.item_no.localeCompare(b.item_no);
     });

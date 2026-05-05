@@ -10,11 +10,18 @@ const router = Router();
 
 const ACTIVE_STATUSES = new Set(["Načrtovano", "Potrjen", "Izdano", "Čvrsto načrtovano"]);
 
+// UoM conversion: ProdOrderComponents.Remaining_Quantity is always in base KOS/CPS/KG.
+// For items stored per 1000 units, divide RemQty by this factor to match Item.InventoryField units.
+const UOM_FACTORS: Record<string, number> = {
+  "1000CPS": 1000,
+};
+
 type BcItem = {
   No: string;
   Description: string;
   InventoryField: number;
   Unit_Cost: number;
+  Base_Unit_of_Measure: string;
 };
 
 type ProdComp = {
@@ -32,10 +39,11 @@ export type Material = {
   opis: string;
   zaloga: number;
   cena: number;
+  uom: string;
   kolicina: number;
   totalSubStock: number;
   dejansko: number;
-  nadomestki: Array<{ st: string; opis: string; zaloga: number; cena: number }>;
+  nadomestki: Array<{ st: string; opis: string; zaloga: number; cena: number; uom: string }>;
 };
 
 let subsMap: Record<string, string[]> | null = null;
@@ -67,13 +75,13 @@ async function paginatedFetch<T>(url: string): Promise<T[]> {
 
 async function fetchBcItems(): Promise<Map<string, BcItem>> {
   const rows = await paginatedFetch<BcItem>(
-    `${BASE_URL}/Item?$select=No,Description,InventoryField,Unit_Cost&$top=500`
+    `${BASE_URL}/Item?$select=No,Description,InventoryField,Unit_Cost,Base_Unit_of_Measure&$top=500`
   );
   return new Map(rows.map((r) => [r.No.trim(), r]));
 }
 
-// Aggregate active production order components by item
-async function fetchProdNeeds(): Promise<Map<string, { qty: number; earliestDue: string }>> {
+// Aggregate active production order components by item, applying UoM conversion
+async function fetchProdNeeds(itemsMap: Map<string, BcItem>): Promise<Map<string, { qty: number; earliestDue: string }>> {
   const rows = await paginatedFetch<ProdComp>(
     `${BASE_URL}/ProdOrderComponents?$select=Status,Item_No,Remaining_Quantity,Due_Date,Unit_Cost&$top=2000`
   );
@@ -81,14 +89,19 @@ async function fetchProdNeeds(): Promise<Map<string, { qty: number; earliestDue:
   for (const r of rows) {
     const key = r.Item_No?.trim();
     if (!key || !ACTIVE_STATUSES.has(r.Status) || r.Remaining_Quantity <= 0) continue;
+
+    const uom = itemsMap.get(key)?.Base_Unit_of_Measure ?? "";
+    const factor = UOM_FACTORS[uom] ?? 1;
+    const adjustedQty = r.Remaining_Quantity / factor;
+
     const existing = map.get(key);
     if (existing) {
-      existing.qty += r.Remaining_Quantity;
+      existing.qty += adjustedQty;
       if (r.Due_Date && r.Due_Date > "0001-01-01" && r.Due_Date < existing.earliestDue) {
         existing.earliestDue = r.Due_Date;
       }
     } else {
-      map.set(key, { qty: r.Remaining_Quantity, earliestDue: r.Due_Date ?? "" });
+      map.set(key, { qty: adjustedQty, earliestDue: r.Due_Date ?? "" });
     }
   }
   return map;
@@ -101,7 +114,8 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
   if (bcCache && Date.now() - bcCache.fetchedAt < CACHE_TTL) return bcCache.data;
 
   log("Fetching BC Items + ProdOrderComponents...");
-  const [itemsMap, prodNeeds] = await Promise.all([fetchBcItems(), fetchProdNeeds()]);
+  const itemsMap = await fetchBcItems();
+  const prodNeeds = await fetchProdNeeds(itemsMap);
   log(`BC: ${itemsMap.size} items, ${prodNeeds.size} items with active production needs`);
 
   const substitutesMap = getSubstitutesMap();
@@ -111,18 +125,25 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
     const bcItem = itemsMap.get(itemNo);
     const zaloga = bcItem?.InventoryField ?? 0;
     const cena = bcItem?.Unit_Cost ?? 0;
+    const uom = bcItem?.Base_Unit_of_Measure ?? "";
     const opis = bcItem?.Description ?? itemNo;
 
     const subNos = substitutesMap[itemNo] ?? [];
     const nadomestki = subNos.map((sNo) => {
       const sub = itemsMap.get(sNo);
-      return { st: sNo, opis: sub?.Description ?? sNo, zaloga: sub?.InventoryField ?? 0, cena: sub?.Unit_Cost ?? 0 };
+      return {
+        st: sNo,
+        opis: sub?.Description ?? sNo,
+        zaloga: sub?.InventoryField ?? 0,
+        cena: sub?.Unit_Cost ?? 0,
+        uom: sub?.Base_Unit_of_Measure ?? "",
+      };
     });
 
     const totalSubStock = nadomestki.reduce((s, n) => s + n.zaloga, 0);
     const dejansko = Math.max(0, need.qty - zaloga - totalSubStock);
 
-    materials.push({ st: itemNo, opis, zaloga, cena, kolicina: need.qty, totalSubStock, dejansko, nadomestki });
+    materials.push({ st: itemNo, opis, zaloga, cena, uom, kolicina: need.qty, totalSubStock, dejansko, nadomestki });
   }
 
   // Default sort: price descending (most expensive first)

@@ -53,6 +53,7 @@ export const GetScheduleResponseItem = zod.object({
   prod_order_no: zod.string(),
   status: zod.string(),
   remaining_qty: zod.number(),
+  uom: zod.string(),
   due_date: zod.string(),
   urgency_days: zod.number(),
   item_stock: zod.number(),

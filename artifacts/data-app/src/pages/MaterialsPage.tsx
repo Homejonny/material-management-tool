@@ -18,6 +18,7 @@ type Substitute = {
   opis: string;
   zaloga: number;
   cena: number;
+  uom: string;
 };
 
 type Material = {
@@ -25,6 +26,7 @@ type Material = {
   opis: string;
   zaloga: number;
   cena: number;
+  uom: string;
   kolicina: number;
   totalSubStock: number;
   dejansko: number;
@@ -226,24 +228,46 @@ export default function MaterialsPage() {
     },
     {
       accessorKey: "zaloga",
-      header: "Zaloga (kg)",
-      size: 100,
+      header: "Zaloga",
+      size: 110,
       cell: info => {
         const v = info.getValue() as number;
-        return <span className={v > 0 ? "text-foreground font-medium" : "text-muted-foreground"}>{fmt(v)}</span>;
+        const uom = (info.row.original as Material).uom;
+        return (
+          <span className={v > 0 ? "text-foreground font-medium" : "text-muted-foreground"}>
+            {fmt(v)}
+            {uom && <span className="ml-1 text-xs text-muted-foreground">{uom}</span>}
+          </span>
+        );
       },
     },
     {
       accessorKey: "cena",
-      header: "Cena / kg",
-      size: 90,
-      cell: info => <span className="text-muted-foreground">{fmtPrice(info.getValue() as number)}</span>,
+      header: "Cena / enoto",
+      size: 100,
+      cell: info => {
+        const uom = (info.row.original as Material).uom;
+        return (
+          <span className="text-muted-foreground">
+            {fmtPrice(info.getValue() as number)}
+            {uom && <span className="ml-1 text-xs opacity-60">/{uom}</span>}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "kolicina",
       header: "Potrebna kol.",
-      size: 100,
-      cell: info => <span className="font-medium">{fmt(info.getValue() as number)}</span>,
+      size: 110,
+      cell: info => {
+        const uom = (info.row.original as Material).uom;
+        return (
+          <span className="font-medium">
+            {fmt(info.getValue() as number)}
+            {uom && <span className="ml-1 text-xs text-muted-foreground">{uom}</span>}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "totalSubStock",
@@ -256,12 +280,18 @@ export default function MaterialsPage() {
     },
     {
       accessorKey: "dejansko",
-      header: "Za naročiti (kg)",
+      header: "Za naročiti",
       size: 110,
       cell: info => {
         const v = info.getValue() as number;
+        const uom = (info.row.original as Material).uom;
         if (v === 0) return <span className="font-bold text-emerald-600">0</span>;
-        return <span className="font-bold text-red-600">{fmt(v)}</span>;
+        return (
+          <span className="font-bold text-red-600">
+            {fmt(v)}
+            {uom && <span className="ml-1 text-xs font-normal text-red-400">{uom}</span>}
+          </span>
+        );
       },
     },
     {
