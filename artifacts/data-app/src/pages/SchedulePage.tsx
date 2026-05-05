@@ -129,7 +129,7 @@ type FilterMode = "all" | "uncovered" | "preteklo" | "teden" | "mesec";
 
 export default function SchedulePage() {
   const { data: rawLines, isLoading, isError, refetch, dataUpdatedAt } = useGetSchedule();
-  const [sorting, setSorting] = useState<SortingState>([{ id: "due_date", desc: false }]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "item_no", desc: false }]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [showOnlyUncovered, setShowOnlyUncovered] = useState(false);
