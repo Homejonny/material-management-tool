@@ -10,8 +10,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, Search, ArrowUpDown, ArrowUp, ArrowDown, Package, AlertTriangle, CheckCircle2, Download, RefreshCw, Radio } from "lucide-react";
-import * as XLSX from "xlsx";
+import { ChevronDown, ChevronUp, Search, ArrowUpDown, ArrowUp, ArrowDown, Package, AlertTriangle, CheckCircle2, RefreshCw, Radio } from "lucide-react";
 
 type Substitute = {
   st: string | number;
@@ -123,70 +122,6 @@ function SubstitutesDropdown({ nadomestki }: { nadomestki: Substitute[] }) {
   );
 }
 
-function exportToExcel(materials: Material[]) {
-  const rows: (string | number)[][] = [];
-
-  rows.push([
-    "Vrsta",
-    "Št.",
-    "Opis",
-    "Zaloga (kg)",
-    "Cena / kg (€)",
-    "Potrebna količina (kg)",
-    "Zaloga nadomestkov (kg)",
-    "Za naročiti (kg)",
-    "Status",
-  ]);
-
-  for (const mat of materials) {
-    const status = mat.dejansko === 0 ? "Pokrito" : mat.dejansko / mat.kolicina >= 0.8 ? "Naroči" : "Delno";
-    rows.push([
-      "Material",
-      fmtSt(mat.st),
-      mat.opis,
-      mat.zaloga,
-      mat.cena,
-      mat.kolicina,
-      mat.totalSubStock,
-      mat.dejansko,
-      status,
-    ]);
-
-    for (const sub of mat.nadomestki) {
-      rows.push([
-        "  → Nadomestek",
-        fmtSt(sub.st),
-        "    " + sub.opis,
-        sub.zaloga,
-        sub.cena,
-        "",
-        "",
-        "",
-        "",
-      ]);
-    }
-  }
-
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-
-  ws["!cols"] = [
-    { wch: 16 },
-    { wch: 10 },
-    { wch: 60 },
-    { wch: 14 },
-    { wch: 14 },
-    { wch: 22 },
-    { wch: 24 },
-    { wch: 18 },
-    { wch: 12 },
-  ];
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Pregled nabave");
-
-  const date = new Date().toISOString().slice(0, 10);
-  XLSX.writeFile(wb, `nabava_materialov_${date}.xlsx`);
-}
 
 function SortIcon({ sorted }: { sorted: false | "asc" | "desc" }) {
   if (!sorted) return <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/50 ml-1 shrink-0" />;
@@ -474,13 +409,6 @@ export default function MaterialsPage() {
             <p className="text-xs text-muted-foreground ml-auto">
               {table.getFilteredRowModel().rows.length} / {(materials as Material[])?.length ?? 0} materialov
             </p>
-            <button
-              onClick={() => exportToExcel(materials as Material[])}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              Izvozi v Excel
-            </button>
           </div>
         </div>
 

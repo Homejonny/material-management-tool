@@ -15,14 +15,12 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Download,
   RefreshCw,
   Search,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
-import * as XLSX from "xlsx";
 
 type ScheduleLine = {
   item_no: string;
@@ -303,28 +301,6 @@ export default function SchedulePage() {
     },
   });
 
-  function exportToExcel() {
-    const exportData = filteredData.map((r) => ({
-      "Rok (due date)": fmtDate(r.due_date),
-      "Dni do roka": r.urgency_days === 9999 ? "" : r.urgency_days,
-      "Delovni nalog": r.prod_order_no,
-      "Status DN": r.status,
-      "Šifra materiala": r.item_no.padStart(6, "0"),
-      Material: r.opis,
-      Potreba: r.remaining_qty,
-      Zaloga: r.item_stock,
-      "Zaloga nadomestkov": r.sub_stock,
-      "Skupaj razpoložljivo": r.total_available,
-      "Cena (€/enoto)": r.cena,
-      Dobavitelj: r.vendor_name,
-      "Dobavni rok": r.lead_time,
-    }));
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Terminski plan");
-    XLSX.writeFile(wb, `terminski-plan-${new Date().toISOString().slice(0, 10)}.xlsx`);
-  }
-
   const updatedAt = dataUpdatedAt
     ? new Date(dataUpdatedAt).toLocaleTimeString("sl-SI", { hour: "2-digit", minute: "2-digit" })
     : null;
@@ -457,13 +433,6 @@ export default function SchedulePage() {
           >
             <RefreshCw className="w-3.5 h-3.5" />
             Osveži
-          </button>
-          <button
-            onClick={exportToExcel}
-            className="h-9 px-3 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors inline-flex items-center gap-1.5"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Excel
           </button>
         </div>
       </div>

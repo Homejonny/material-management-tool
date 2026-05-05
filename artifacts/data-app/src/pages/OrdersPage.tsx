@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { useGetOrderSuggestions } from "@workspace/api-client-react";
-import { Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Truck, Download, Building2 } from "lucide-react";
-import * as XLSX from "xlsx";
+import { Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Truck, Building2 } from "lucide-react";
 
 type OrderSuggestion = {
   st: string;
@@ -88,30 +87,6 @@ export default function OrdersPage() {
     return sortDir === "asc"
       ? <ArrowUp className="w-3.5 h-3.5 text-primary ml-1 shrink-0" />
       : <ArrowDown className="w-3.5 h-3.5 text-primary ml-1 shrink-0" />;
-  }
-
-  function exportExcel() {
-    if (!sorted.length) return;
-    const rows = sorted.map((o) => ({
-      "Šifra artikla": o.st,
-      "Opis": o.opis,
-      "Dobavitelj": o.vendor_name,
-      "Šifra pri dobavitelju": o.vendor_item_no || "—",
-      "Čas dobave": o.lead_time,
-      "Dnevi dobave": o.lead_time_days,
-      "Količina za naročiti": o.dejansko,
-      "Datum naročila": o.order_date,
-      "Predviden datum prejema": o.receipt_date === "—" ? "—" : o.receipt_date,
-      "Sistem dopolnjevanja": o.replenishment_system,
-    }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws["!cols"] = [
-      { wch: 14 }, { wch: 45 }, { wch: 30 }, { wch: 22 },
-      { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 16 }, { wch: 22 }, { wch: 22 },
-    ];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Predlagani datumi naročila");
-    XLSX.writeFile(wb, `narocila_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
   const byVendor = useMemo(() => {
@@ -215,13 +190,6 @@ export default function OrdersPage() {
             />
           </div>
           <span className="text-sm text-muted-foreground">{sorted.length} materialov</span>
-          <button
-            onClick={exportExcel}
-            className="ml-auto inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            Izvozi Excel
-          </button>
         </div>
 
         {/* Table */}
