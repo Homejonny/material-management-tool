@@ -61,6 +61,20 @@ paths:
                 required:
                   - ok
                   - count
+  /orders:
+    get:
+      operationId: getOrderSuggestions
+      tags: [materials]
+      summary: Get suggested order dates per material based on BC planning data
+      responses:
+        "200":
+          description: List of order suggestions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OrderSuggestion"
   /presence/heartbeat:
     post:
       operationId: presenceHeartbeat
@@ -138,6 +152,43 @@ components:
         - name
         - lastSeen
         - color
+    OrderSuggestion:
+      type: object
+      properties:
+        st:
+          type: string
+        opis:
+          type: string
+        dejansko:
+          type: number
+        vendor_no:
+          type: string
+        vendor_name:
+          type: string
+        vendor_item_no:
+          type: string
+        lead_time:
+          type: string
+        lead_time_days:
+          type: number
+        order_date:
+          type: string
+        receipt_date:
+          type: string
+        replenishment_system:
+          type: string
+      required:
+        - st
+        - opis
+        - dejansko
+        - vendor_no
+        - vendor_name
+        - vendor_item_no
+        - lead_time
+        - lead_time_days
+        - order_date
+        - receipt_date
+        - replenishment_system
     Substitute:
       type: object
       properties:

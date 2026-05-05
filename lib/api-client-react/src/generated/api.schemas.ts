@@ -27,6 +27,20 @@ export interface ActiveUser {
   color: string;
 }
 
+export interface OrderSuggestion {
+  st: string;
+  opis: string;
+  dejansko: number;
+  vendor_no: string;
+  vendor_name: string;
+  vendor_item_no: string;
+  lead_time: string;
+  lead_time_days: number;
+  order_date: string;
+  receipt_date: string;
+  replenishment_system: string;
+}
+
 export interface Substitute {
   st: string | number;
   opis: string;

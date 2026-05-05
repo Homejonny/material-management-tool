@@ -45,6 +45,26 @@ export const RefreshMaterialsResponse = zod.object({
 });
 
 /**
+ * @summary Get suggested order dates per material based on BC planning data
+ */
+export const GetOrderSuggestionsResponseItem = zod.object({
+  st: zod.string(),
+  opis: zod.string(),
+  dejansko: zod.number(),
+  vendor_no: zod.string(),
+  vendor_name: zod.string(),
+  vendor_item_no: zod.string(),
+  lead_time: zod.string(),
+  lead_time_days: zod.number(),
+  order_date: zod.string(),
+  receipt_date: zod.string(),
+  replenishment_system: zod.string(),
+});
+export const GetOrderSuggestionsResponse = zod.array(
+  GetOrderSuggestionsResponseItem,
+);
+
+/**
  * @summary Send a heartbeat to register as active
  */
 export const PresenceHeartbeatBody = zod.object({
