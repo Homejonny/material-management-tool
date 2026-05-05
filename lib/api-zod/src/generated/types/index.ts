@@ -11,6 +11,6 @@ export * from "./healthStatus";
 export * from "./heartbeatRequest";
 export * from "./heartbeatResponse";
 export * from "./material";
-export * from "./orderSuggestion";
 export * from "./refreshMaterials200";
+export * from "./scheduleLine";
 export * from "./substitute";

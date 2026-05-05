@@ -2,13 +2,13 @@ import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import materialsRouter from "./materials";
 import presenceRouter from "./presence";
-import ordersRouter from "./orders";
+import scheduleRouter from "./schedule";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(materialsRouter);
 router.use(presenceRouter);
-router.use(ordersRouter);
+router.use(scheduleRouter);
 
 export default router;

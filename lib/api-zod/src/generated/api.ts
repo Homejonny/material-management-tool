@@ -45,24 +45,26 @@ export const RefreshMaterialsResponse = zod.object({
 });
 
 /**
- * @summary Get suggested order dates per material based on BC planning data
+ * @summary Get production order component lines sorted by due date (terminski plan)
  */
-export const GetOrderSuggestionsResponseItem = zod.object({
-  st: zod.string(),
+export const GetScheduleResponseItem = zod.object({
+  item_no: zod.string(),
   opis: zod.string(),
-  dejansko: zod.number(),
+  prod_order_no: zod.string(),
+  status: zod.string(),
+  remaining_qty: zod.number(),
+  due_date: zod.string(),
+  urgency_days: zod.number(),
+  item_stock: zod.number(),
+  sub_stock: zod.number(),
+  total_available: zod.number(),
+  cena: zod.number(),
   vendor_no: zod.string(),
   vendor_name: zod.string(),
-  vendor_item_no: zod.string(),
   lead_time: zod.string(),
   lead_time_days: zod.number(),
-  order_date: zod.string(),
-  receipt_date: zod.string(),
-  replenishment_system: zod.string(),
 });
-export const GetOrderSuggestionsResponse = zod.array(
-  GetOrderSuggestionsResponseItem,
-);
+export const GetScheduleResponse = zod.array(GetScheduleResponseItem);
 
 /**
  * @summary Send a heartbeat to register as active

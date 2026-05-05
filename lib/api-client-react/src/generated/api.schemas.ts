@@ -27,18 +27,22 @@ export interface ActiveUser {
   color: string;
 }
 
-export interface OrderSuggestion {
-  st: string;
+export interface ScheduleLine {
+  item_no: string;
   opis: string;
-  dejansko: number;
+  prod_order_no: string;
+  status: string;
+  remaining_qty: number;
+  due_date: string;
+  urgency_days: number;
+  item_stock: number;
+  sub_stock: number;
+  total_available: number;
+  cena: number;
   vendor_no: string;
   vendor_name: string;
-  vendor_item_no: string;
   lead_time: string;
   lead_time_days: number;
-  order_date: string;
-  receipt_date: string;
-  replenishment_system: string;
 }
 
 export interface Substitute {

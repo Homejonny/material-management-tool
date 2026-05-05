@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import MaterialsPage from "@/pages/MaterialsPage";
-import OrdersPage from "@/pages/OrdersPage";
+import SchedulePage from "@/pages/SchedulePage";
 import { Package, CalendarClock } from "lucide-react";
 
 const queryClient = new QueryClient({
@@ -15,7 +15,7 @@ const queryClient = new QueryClient({
   },
 });
 
-type Page = "materials" | "orders";
+type Page = "materials" | "schedule";
 
 function Nav({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
   return (
@@ -34,15 +34,15 @@ function Nav({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
             Pregled nabave
           </button>
           <button
-            onClick={() => setPage("orders")}
+            onClick={() => setPage("schedule")}
             className={`inline-flex items-center gap-2 px-3 h-9 rounded-md text-sm font-medium transition-colors ${
-              page === "orders"
+              page === "schedule"
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
             }`}
           >
             <CalendarClock className="w-4 h-4" />
-            Datumi naročila
+            Terminski plan
           </button>
         </nav>
       </div>
@@ -58,7 +58,7 @@ function App() {
       <TooltipProvider>
         <Nav page={page} setPage={setPage} />
         {page === "materials" && <MaterialsPage />}
-        {page === "orders" && <OrdersPage />}
+        {page === "schedule" && <SchedulePage />}
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

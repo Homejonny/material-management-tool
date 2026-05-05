@@ -61,20 +61,20 @@ paths:
                 required:
                   - ok
                   - count
-  /orders:
+  /schedule:
     get:
-      operationId: getOrderSuggestions
+      operationId: getSchedule
       tags: [materials]
-      summary: Get suggested order dates per material based on BC planning data
+      summary: Get production order component lines sorted by due date (terminski plan)
       responses:
         "200":
-          description: List of order suggestions
+          description: Schedule lines
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/OrderSuggestion"
+                  $ref: "#/components/schemas/ScheduleLine"
   /presence/heartbeat:
     post:
       operationId: presenceHeartbeat
@@ -152,43 +152,55 @@ components:
         - name
         - lastSeen
         - color
-    OrderSuggestion:
+    ScheduleLine:
       type: object
       properties:
-        st:
+        item_no:
           type: string
         opis:
           type: string
-        dejansko:
+        prod_order_no:
+          type: string
+        status:
+          type: string
+        remaining_qty:
+          type: number
+        due_date:
+          type: string
+        urgency_days:
+          type: number
+        item_stock:
+          type: number
+        sub_stock:
+          type: number
+        total_available:
+          type: number
+        cena:
           type: number
         vendor_no:
           type: string
         vendor_name:
           type: string
-        vendor_item_no:
-          type: string
         lead_time:
           type: string
         lead_time_days:
           type: number
-        order_date:
-          type: string
-        receipt_date:
-          type: string
-        replenishment_system:
-          type: string
       required:
-        - st
+        - item_no
         - opis
-        - dejansko
+        - prod_order_no
+        - status
+        - remaining_qty
+        - due_date
+        - urgency_days
+        - item_stock
+        - sub_stock
+        - total_available
+        - cena
         - vendor_no
         - vendor_name
-        - vendor_item_no
         - lead_time
         - lead_time_days
-        - order_date
-        - receipt_date
-        - replenishment_system
     Substitute:
       type: object
       properties:

@@ -197,7 +197,7 @@ export default function MaterialsPage() {
   const { mutate: refreshMaterials, isPending: isRefreshing } = useRefreshMaterials({
     mutation: { onSuccess: () => refetch() },
   });
-  const [sorting, setSorting] = useState<SortingState>([{ id: "st", desc: false }]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "cena", desc: true }]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [filterMode, setFilterMode] = useState<"all" | "narociti" | "pokrito">("all");
 

@@ -22,8 +22,8 @@ import type {
   HeartbeatRequest,
   HeartbeatResponse,
   Material,
-  OrderSuggestion,
   RefreshMaterials200,
+  ScheduleLine,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -267,31 +267,31 @@ export const useRefreshMaterials = <
 };
 
 /**
- * @summary Get suggested order dates per material based on BC planning data
+ * @summary Get production order component lines sorted by due date (terminski plan)
  */
-export const getGetOrderSuggestionsUrl = () => {
-  return `/api/orders`;
+export const getGetScheduleUrl = () => {
+  return `/api/schedule`;
 };
 
-export const getOrderSuggestions = async (
+export const getSchedule = async (
   options?: RequestInit,
-): Promise<OrderSuggestion[]> => {
-  return customFetch<OrderSuggestion[]>(getGetOrderSuggestionsUrl(), {
+): Promise<ScheduleLine[]> => {
+  return customFetch<ScheduleLine[]>(getGetScheduleUrl(), {
     ...options,
     method: "GET",
   });
 };
 
-export const getGetOrderSuggestionsQueryKey = () => {
-  return [`/api/orders`] as const;
+export const getGetScheduleQueryKey = () => {
+  return [`/api/schedule`] as const;
 };
 
-export const getGetOrderSuggestionsQueryOptions = <
-  TData = Awaited<ReturnType<typeof getOrderSuggestions>>,
+export const getGetScheduleQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSchedule>>,
   TError = ErrorType<unknown>,
 >(options?: {
   query?: UseQueryOptions<
-    Awaited<ReturnType<typeof getOrderSuggestions>>,
+    Awaited<ReturnType<typeof getSchedule>>,
     TError,
     TData
   >;
@@ -299,40 +299,40 @@ export const getGetOrderSuggestionsQueryOptions = <
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetOrderSuggestionsQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getGetScheduleQueryKey();
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getOrderSuggestions>>
-  > = ({ signal }) => getOrderSuggestions({ signal, ...requestOptions });
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSchedule>>> = ({
+    signal,
+  }) => getSchedule({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getOrderSuggestions>>,
+    Awaited<ReturnType<typeof getSchedule>>,
     TError,
     TData
   > & { queryKey: QueryKey };
 };
 
-export type GetOrderSuggestionsQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getOrderSuggestions>>
+export type GetScheduleQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSchedule>>
 >;
-export type GetOrderSuggestionsQueryError = ErrorType<unknown>;
+export type GetScheduleQueryError = ErrorType<unknown>;
 
 /**
- * @summary Get suggested order dates per material based on BC planning data
+ * @summary Get production order component lines sorted by due date (terminski plan)
  */
 
-export function useGetOrderSuggestions<
-  TData = Awaited<ReturnType<typeof getOrderSuggestions>>,
+export function useGetSchedule<
+  TData = Awaited<ReturnType<typeof getSchedule>>,
   TError = ErrorType<unknown>,
 >(options?: {
   query?: UseQueryOptions<
-    Awaited<ReturnType<typeof getOrderSuggestions>>,
+    Awaited<ReturnType<typeof getSchedule>>,
     TError,
     TData
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetOrderSuggestionsQueryOptions(options);
+  const queryOptions = getGetScheduleQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
