@@ -47,6 +47,8 @@ export type Material = {
   kolicina: number;
   totalSubStock: number;
   dejansko: number;
+  order_multiple: number;
+  order_qty: number;
   nadomestki: Array<{ st: string; opis: string; zaloga: number; cena: number; uom: string }>;
 };
 
@@ -75,6 +77,26 @@ async function paginatedFetch<T>(url: string): Promise<T[]> {
     next = json["@odata.nextLink"] ?? null;
   }
   return results;
+}
+
+type BcWorkflowItem = {
+  number: string;
+  orderMultiple: number;
+  minimumOrderQuantity: number;
+};
+
+async function fetchBcOrderMultiples(): Promise<Map<string, number>> {
+  const rows = await paginatedFetch<BcWorkflowItem>(
+    `${BASE_URL}/workflowItems?$select=number,orderMultiple,minimumOrderQuantity&$top=500`
+  );
+  const map = new Map<string, number>();
+  for (const r of rows) {
+    const key = r.number?.trim();
+    if (!key) continue;
+    const val = r.orderMultiple > 0 ? r.orderMultiple : r.minimumOrderQuantity;
+    if (val > 0) map.set(key, val);
+  }
+  return map;
 }
 
 async function fetchBcItems(): Promise<Map<string, BcItem>> {
@@ -118,7 +140,7 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
   if (bcCache && Date.now() - bcCache.fetchedAt < CACHE_TTL) return bcCache.data;
 
   log("Fetching BC Items + ProdOrderComponents...");
-  const itemsMap = await fetchBcItems();
+  const [itemsMap, bcMultiplesMap] = await Promise.all([fetchBcItems(), fetchBcOrderMultiples()]);
   const prodNeeds = await fetchProdNeeds(itemsMap);
   log(`BC: ${itemsMap.size} items, ${prodNeeds.size} items with active production needs`);
 
@@ -147,8 +169,10 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
 
     const totalSubStock = nadomestki.reduce((s, n) => s + n.zaloga, 0);
     const dejansko = Math.max(0, need.qty - zaloga - totalSubStock);
+    const order_multiple = bcMultiplesMap.get(itemNo) ?? 0;
+    const order_qty = order_multiple > 0 ? Math.ceil(dejansko / order_multiple) * order_multiple : dejansko;
 
-    materials.push({ st: itemNo, opis, zaloga, cena, uom, replenishment, kolicina: need.qty, totalSubStock, dejansko, nadomestki });
+    materials.push({ st: itemNo, opis, zaloga, cena, uom, replenishment, kolicina: need.qty, totalSubStock, dejansko, order_multiple, order_qty, nadomestki });
   }
 
   // Default sort: price descending (most expensive first)

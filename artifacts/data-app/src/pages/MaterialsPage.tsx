@@ -30,6 +30,8 @@ type Material = {
   kolicina: number;
   totalSubStock: number;
   dejansko: number;
+  order_multiple: number;
+  order_qty: number;
   nadomestki: Substitute[];
 };
 
@@ -217,18 +219,26 @@ export default function MaterialsPage() {
       },
     },
     {
-      accessorKey: "dejansko",
+      accessorKey: "order_qty",
       header: "Za naročiti",
-      size: 110,
+      size: 120,
       cell: info => {
-        const v = info.getValue() as number;
-        const uom = (info.row.original as Material).uom;
-        if (v === 0) return <span className="font-bold text-emerald-600">0</span>;
+        const m = info.row.original as Material;
+        const v = m.order_qty ?? m.dejansko;
+        const uom = m.uom;
+        if (!v || v === 0) return <span className="font-bold text-emerald-600">0</span>;
         return (
-          <span className="font-bold text-red-600">
-            {fmt(v)}
-            {uom && <span className="ml-1 text-xs font-normal text-red-400">{uom}</span>}
-          </span>
+          <div className="flex flex-col items-end">
+            <span className="font-bold text-red-600">
+              {fmt(v)}
+              {uom && <span className="ml-1 text-xs font-normal text-red-400">{uom}</span>}
+            </span>
+            {(m.order_multiple ?? 0) > 0 && v !== m.dejansko && (
+              <span className="text-[10px] text-muted-foreground">
+                ({fmt(m.dejansko)} × {fmt(m.order_multiple)})
+              </span>
+            )}
+          </div>
         );
       },
     },
@@ -273,7 +283,7 @@ export default function MaterialsPage() {
 
   const toOrder = useMemo(() => filteredData.filter(m => m.dejansko > 0).length, [filteredData]);
   const covered = useMemo(() => filteredData.filter(m => m.dejansko === 0).length, [filteredData]);
-  const totalOrderValue = useMemo(() => filteredData.reduce((s, m) => s + m.dejansko * m.cena, 0), [filteredData]);
+  const totalOrderValue = useMemo(() => filteredData.reduce((s, m) => s + m.order_qty * m.cena, 0), [filteredData]);
 
   if (isLoading) {
     return (
