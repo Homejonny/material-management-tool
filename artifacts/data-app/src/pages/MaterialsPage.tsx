@@ -283,7 +283,7 @@ export default function MaterialsPage() {
 
   const toOrder = useMemo(() => filteredData.filter(m => m.dejansko > 0).length, [filteredData]);
   const covered = useMemo(() => filteredData.filter(m => m.dejansko === 0).length, [filteredData]);
-  const totalOrderValue = useMemo(() => filteredData.reduce((s, m) => s + m.order_qty * m.cena, 0), [filteredData]);
+  const totalOrderValue = useMemo(() => filteredData.reduce((s, m) => s + (m.order_qty ?? m.dejansko) * m.cena, 0), [filteredData]);
 
   if (isLoading) {
     return (
