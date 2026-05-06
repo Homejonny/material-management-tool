@@ -33,6 +33,13 @@ type BcItemPlanning = {
   Replenishment_System: string;
 };
 
+type BcWorkflowItem = {
+  number: string;
+  orderMultiple: number;
+  minimumOrderQuantity: number;
+  maximumOrderQuantity: number;
+};
+
 type BcVendor = {
   No: string;
   Name: string;
@@ -93,12 +100,29 @@ function addDays(date: Date, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-let orderMultiplesMap: Record<string, number> | null = null;
-function getOrderMultiples(): Record<string, number> {
-  if (orderMultiplesMap) return orderMultiplesMap;
+// Manual overrides stored in JSON file — these take priority over BC values
+let orderMultiplesOverrides: Record<string, number> | null = null;
+function getOrderMultiplesOverrides(): Record<string, number> {
+  if (orderMultiplesOverrides) return orderMultiplesOverrides;
   const p = join(__dirname, "../data/order-multiples.json");
-  orderMultiplesMap = JSON.parse(readFileSync(p, "utf-8"));
-  return orderMultiplesMap!;
+  orderMultiplesOverrides = JSON.parse(readFileSync(p, "utf-8"));
+  return orderMultiplesOverrides!;
+}
+
+// Fetch orderMultiple + min/max directly from BC workflowItems
+async function fetchBcOrderMultiples(): Promise<Map<string, number>> {
+  const rows = await paginatedFetch<BcWorkflowItem>(
+    `${BASE_URL}/workflowItems?$select=number,orderMultiple,minimumOrderQuantity,maximumOrderQuantity&$top=500`
+  );
+  const map = new Map<string, number>();
+  for (const r of rows) {
+    const key = r.number?.trim();
+    if (!key) continue;
+    // Use orderMultiple; fall back to minimumOrderQuantity if orderMultiple is 0
+    const val = r.orderMultiple > 0 ? r.orderMultiple : r.minimumOrderQuantity;
+    if (val > 0) map.set(key, val);
+  }
+  return map;
 }
 
 async function fetchItemVendorPlanning(): Promise<Map<string, BcItemPlanning>> {
@@ -162,20 +186,22 @@ const CACHE_TTL = 5 * 60 * 1000;
 async function getOrderSuggestions(log: (m: string) => void): Promise<OrderSuggestion[]> {
   if (ordersCache && Date.now() - ordersCache.fetchedAt < CACHE_TTL) return ordersCache.data;
 
-  log("Fetching BC vendor, purchase, and planning dates...");
-  const [materials, itemVendorMap, vendorsMap, purchaseMap, planningDates] = await Promise.all([
+  log("Fetching BC vendor, purchase, planning dates and order multiples...");
+  const [materials, itemVendorMap, vendorsMap, purchaseMap, planningDates, bcMultiplesMap] = await Promise.all([
     getMaterialsWithLiveData(log),
     fetchItemVendorPlanning(),
     fetchVendors(),
     fetchRecentPurchaseVendors(),
     fetchPlanningDates(),
+    fetchBcOrderMultiples(),
   ]);
-  log(`Loaded ${itemVendorMap.size} items, ${vendorsMap.size} vendors, ${purchaseMap.size} purchase lines`);
+  log(`Loaded ${itemVendorMap.size} items, ${vendorsMap.size} vendors, ${purchaseMap.size} purchase lines, ${bcMultiplesMap.size} BC order multiples`);
 
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
 
-  const orderMultiples = getOrderMultiples();
+  // Manual overrides take priority over BC values
+  const overrides = getOrderMultiplesOverrides();
 
   const suggestions: OrderSuggestion[] = materials
     .filter((m) => m.dejansko > 0)
@@ -190,8 +216,8 @@ async function getOrderSuggestions(log: (m: string) => void): Promise<OrderSugge
       const rawLeadTime = bcItem?.Lead_Time_Calculation?.trim() || vendor?.Lead_Time_Calculation?.trim() || "";
       const leadTimeDays = parseLeadTimeDays(rawLeadTime);
 
-      // Order multiple: from static config file (BC OData does not expose planning qty fields)
-      const orderMultiple = orderMultiples[key] ?? 0;
+      // Priority: manual override > BC workflowItems orderMultiple > 0
+      const orderMultiple = overrides[key] ?? bcMultiplesMap.get(key) ?? 0;
       const orderQty = orderMultiple > 0
         ? Math.ceil(m.dejansko / orderMultiple) * orderMultiple
         : m.dejansko;
@@ -250,19 +276,19 @@ router.get("/orders", async (req, res) => {
   }
 });
 
-// GET /orders/multiples — return current map
+// GET /orders/multiples — return current manual overrides
 router.get("/orders/multiples", (_req, res) => {
-  res.json(getOrderMultiples());
+  res.json(getOrderMultiplesOverrides());
 });
 
-// PATCH /orders/multiples — update one or more multiples and invalidate cache
+// PATCH /orders/multiples — save manual override and invalidate orders cache
 router.patch("/orders/multiples", (req, res) => {
   const updates = req.body as Record<string, number>;
   if (typeof updates !== "object" || Array.isArray(updates)) {
     res.status(400).json({ error: "Body must be an object { itemNo: multiple }" });
     return;
   }
-  const current = getOrderMultiples();
+  const current = getOrderMultiplesOverrides();
   const merged = { ...current };
   for (const [k, v] of Object.entries(updates)) {
     if (typeof v !== "number" || v < 0) continue;
@@ -274,8 +300,8 @@ router.patch("/orders/multiples", (req, res) => {
   }
   const p = join(__dirname, "../data/order-multiples.json");
   writeFileSync(p, JSON.stringify(merged, null, 2));
-  orderMultiplesMap = merged;
-  ordersCache = null; // invalidate so next fetch recalculates
+  orderMultiplesOverrides = merged;
+  ordersCache = null;
   res.json({ ok: true, updated: Object.keys(updates).length });
 });
 
