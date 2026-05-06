@@ -1,11 +1,13 @@
 import { useState, useMemo } from "react";
 import { useGetOrderSuggestions } from "@workspace/api-client-react";
-import { Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Truck, Building2 } from "lucide-react";
+import { Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Truck, Building2, AlertTriangle } from "lucide-react";
 
 type OrderSuggestion = {
   st: string;
   opis: string;
   dejansko: number;
+  order_multiple: number;
+  order_qty: number;
   vendor_no: string;
   vendor_name: string;
   vendor_item_no: string;
@@ -205,7 +207,7 @@ export default function OrdersPage() {
                       { key: "vendor_name", label: "Dobavitelj" },
                       { key: "vendor_item_no", label: "Šifra pri dob." },
                       { key: "lead_time", label: "Čas dobave" },
-                      { key: "dejansko", label: "Kol. za naročiti" },
+                      { key: "order_qty", label: "Kol. za naročiti" },
                       { key: "order_date", label: "Datum naročila" },
                       { key: "receipt_date", label: "Predviden prejem" },
                     ] as { key: SortKey; label: string }[]
@@ -265,8 +267,21 @@ export default function OrdersPage() {
                           <span className="text-xs text-muted-foreground ml-1">({o.lead_time_days}d)</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-foreground whitespace-nowrap">
-                        {fmt(o.dejansko)}
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span className="font-semibold text-foreground">{fmt(o.order_qty)}</span>
+                          {o.order_multiple > 0 ? (
+                            <span className="text-[10px] text-muted-foreground">× {fmt(o.order_multiple)}</span>
+                          ) : (
+                            <span
+                              className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1 py-0.5"
+                              title="Količnik za nabavo ni nastavljen. Nastavite ga v kartici artikla v BC (Načrtovanje → Naročilna serija)."
+                            >
+                              <AlertTriangle className="w-2.5 h-2.5" />
+                              Ni količnika
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-1.5 text-foreground">

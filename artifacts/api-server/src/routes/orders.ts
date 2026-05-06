@@ -1,5 +1,11 @@
 import { Router } from "express";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import { getMaterialsWithLiveData } from "./materials.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const router = Router();
 
@@ -7,6 +13,8 @@ export type OrderSuggestion = {
   st: string;
   opis: string;
   dejansko: number;
+  order_multiple: number;
+  order_qty: number;
   vendor_no: string;
   vendor_name: string;
   vendor_item_no: string;
@@ -85,6 +93,14 @@ function addDays(date: Date, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+let orderMultiplesMap: Record<string, number> | null = null;
+function getOrderMultiples(): Record<string, number> {
+  if (orderMultiplesMap) return orderMultiplesMap;
+  const p = join(__dirname, "../data/order-multiples.json");
+  orderMultiplesMap = JSON.parse(readFileSync(p, "utf-8"));
+  return orderMultiplesMap!;
+}
+
 async function fetchItemVendorPlanning(): Promise<Map<string, BcItemPlanning>> {
   const rows = await paginatedFetch<BcItemPlanning>(
     `${BASE_URL}/Item?$select=No,Vendor_No,Vendor_Item_No,Lead_Time_Calculation,Replenishment_System&$top=500`
@@ -159,6 +175,8 @@ async function getOrderSuggestions(log: (m: string) => void): Promise<OrderSugge
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
 
+  const orderMultiples = getOrderMultiples();
+
   const suggestions: OrderSuggestion[] = materials
     .filter((m) => m.dejansko > 0)
     .map((m) => {
@@ -171,6 +189,12 @@ async function getOrderSuggestions(log: (m: string) => void): Promise<OrderSugge
       const vendorItemNo = bcItem?.Vendor_Item_No?.trim() || purchaseLine?.vendorItemNumber?.trim() || "";
       const rawLeadTime = bcItem?.Lead_Time_Calculation?.trim() || vendor?.Lead_Time_Calculation?.trim() || "";
       const leadTimeDays = parseLeadTimeDays(rawLeadTime);
+
+      // Order multiple: from static config file (BC OData does not expose planning qty fields)
+      const orderMultiple = orderMultiples[key] ?? 0;
+      const orderQty = orderMultiple > 0
+        ? Math.ceil(m.dejansko / orderMultiple) * orderMultiple
+        : m.dejansko;
 
       // Use planning worksheet Order_Date as suggested order date
       const planDates = planningDates.get(key);
@@ -194,6 +218,8 @@ async function getOrderSuggestions(log: (m: string) => void): Promise<OrderSugge
         st: key,
         opis: m.opis,
         dejansko: m.dejansko,
+        order_multiple: orderMultiple,
+        order_qty: orderQty,
         vendor_no: vendorNo,
         vendor_name: vendor?.Name ?? (vendorNo ? vendorNo : "Ni določen"),
         vendor_item_no: vendorItemNo,

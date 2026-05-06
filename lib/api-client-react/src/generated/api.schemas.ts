@@ -27,6 +27,22 @@ export interface ActiveUser {
   color: string;
 }
 
+export interface OrderSuggestion {
+  st: string;
+  opis: string;
+  dejansko: number;
+  order_multiple: number;
+  order_qty: number;
+  vendor_no: string;
+  vendor_name: string;
+  vendor_item_no: string;
+  lead_time: string;
+  lead_time_days: number;
+  order_date: string;
+  receipt_date: string;
+  replenishment_system: string;
+}
+
 export interface ScheduleLine {
   item_no: string;
   opis: string;
