@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { getMaterialsWithLiveData } from "./materials.js";
@@ -248,6 +248,35 @@ router.get("/orders", async (req, res) => {
     req.log.error({ err }, "Failed to load order suggestions");
     res.status(500).json({ error: "Failed to load order suggestions" });
   }
+});
+
+// GET /orders/multiples — return current map
+router.get("/orders/multiples", (_req, res) => {
+  res.json(getOrderMultiples());
+});
+
+// PATCH /orders/multiples — update one or more multiples and invalidate cache
+router.patch("/orders/multiples", (req, res) => {
+  const updates = req.body as Record<string, number>;
+  if (typeof updates !== "object" || Array.isArray(updates)) {
+    res.status(400).json({ error: "Body must be an object { itemNo: multiple }" });
+    return;
+  }
+  const current = getOrderMultiples();
+  const merged = { ...current };
+  for (const [k, v] of Object.entries(updates)) {
+    if (typeof v !== "number" || v < 0) continue;
+    if (v === 0) {
+      delete merged[k];
+    } else {
+      merged[k] = v;
+    }
+  }
+  const p = join(__dirname, "../data/order-multiples.json");
+  writeFileSync(p, JSON.stringify(merged, null, 2));
+  orderMultiplesMap = merged;
+  ordersCache = null; // invalidate so next fetch recalculates
+  res.json({ ok: true, updated: Object.keys(updates).length });
 });
 
 export default router;

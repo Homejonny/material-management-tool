@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useGetOrderSuggestions } from "@workspace/api-client-react";
-import { Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Truck, Building2, AlertTriangle } from "lucide-react";
+import { Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Truck, Building2, AlertTriangle, Pencil, Check, X } from "lucide-react";
 
 type OrderSuggestion = {
   st: string;
@@ -45,11 +45,139 @@ function urgencyBadge(days: number): { label: string; cls: string } {
   return { label: "Normalno", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" };
 }
 
+function calcOrderQty(dejansko: number, multiple: number): number {
+  if (multiple <= 0) return dejansko;
+  return Math.ceil(dejansko / multiple) * multiple;
+}
+
+function MultipleCell({
+  itemNo,
+  dejansko,
+  currentMultiple,
+  onSaved,
+}: {
+  itemNo: string;
+  dejansko: number;
+  currentMultiple: number;
+  onSaved: (itemNo: string, newMultiple: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(currentMultiple > 0 ? String(currentMultiple) : "");
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function startEdit() {
+    setValue(currentMultiple > 0 ? String(currentMultiple) : "");
+    setEditing(true);
+    setTimeout(() => inputRef.current?.select(), 30);
+  }
+
+  function cancel() {
+    setEditing(false);
+    setValue(currentMultiple > 0 ? String(currentMultiple) : "");
+  }
+
+  async function save() {
+    const num = parseFloat(value.replace(",", "."));
+    if (isNaN(num) || num < 0) { cancel(); return; }
+    setSaving(true);
+    try {
+      await fetch("/api/orders/multiples", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [itemNo]: num }),
+      });
+      onSaved(itemNo, num);
+    } finally {
+      setSaving(false);
+      setEditing(false);
+    }
+  }
+
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") save();
+    if (e.key === "Escape") cancel();
+  }
+
+  const orderQty = calcOrderQty(dejansko, currentMultiple);
+
+  if (editing) {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <div className="flex items-center gap-1">
+          <input
+            ref={inputRef}
+            type="number"
+            min="0"
+            step="any"
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            onKeyDown={onKeyDown}
+            className="w-20 text-right text-xs border border-primary rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-primary bg-white"
+            disabled={saving}
+          />
+          <button
+            onClick={save}
+            disabled={saving}
+            className="p-1 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-700 transition-colors"
+            title="Shrani"
+          >
+            <Check className="w-3 h-3" />
+          </button>
+          <button
+            onClick={cancel}
+            className="p-1 rounded bg-muted hover:bg-muted/80 text-muted-foreground transition-colors"
+            title="Prekliči"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+        <span className="text-[10px] text-muted-foreground">množitelj (kolicnik)</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-0.5 group">
+      <div className="flex items-center gap-1">
+        <span className="font-semibold text-foreground">{fmt(orderQty)}</span>
+        <button
+          onClick={startEdit}
+          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted text-muted-foreground"
+          title="Uredi množitelj naročilne serije"
+        >
+          <Pencil className="w-3 h-3" />
+        </button>
+      </div>
+      {currentMultiple > 0 ? (
+        <span className="text-[10px] text-muted-foreground">× {fmt(currentMultiple)}</span>
+      ) : (
+        <button
+          onClick={startEdit}
+          className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1 py-0.5 hover:bg-amber-100 transition-colors"
+          title="Kliknite za nastavitev množitelja naročilne serije"
+        >
+          <AlertTriangle className="w-2.5 h-2.5" />
+          Nastavi količnik
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function OrdersPage() {
-  const { data: orders, isLoading, isError } = useGetOrderSuggestions();
+  const { data: orders, isLoading, isError, refetch } = useGetOrderSuggestions();
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("st");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  // local overrides for multiples (so UI updates immediately after save without full refetch)
+  const [localMultiples, setLocalMultiples] = useState<Record<string, number>>({});
+
+  function onMultipleSaved(itemNo: string, newMultiple: number) {
+    setLocalMultiples(prev => ({ ...prev, [itemNo]: newMultiple }));
+    // also trigger a background refetch so cache is fresh
+    setTimeout(() => refetch(), 500);
+  }
 
   const filtered = useMemo(() => {
     if (!orders) return [];
@@ -99,6 +227,14 @@ export default function OrdersPage() {
     return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
   }, [orders]);
 
+  const missingMultiples = useMemo(() => {
+    if (!orders) return 0;
+    return (orders as OrderSuggestion[]).filter(o => {
+      const m = localMultiples[o.st] ?? o.order_multiple;
+      return m === 0;
+    }).length;
+  }, [orders, localMultiples]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -130,6 +266,12 @@ export default function OrdersPage() {
           <p className="text-muted-foreground text-sm">
             Materiali za naročilo z dobavitelji in predvidenimi datumi prejema glede na čas dobave iz BC
           </p>
+          {missingMultiples > 0 && (
+            <div className="flex items-center gap-2 mt-1 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-sm w-fit">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span><strong>{missingMultiples}</strong> artiklov nima nastavljenega količnika naročilne serije. Kliknite <em>Nastavi količnik</em> v stolpcu "Kol. za naročiti".</span>
+            </div>
+          )}
         </div>
 
         {/* KPI Cards */}
@@ -144,12 +286,10 @@ export default function OrdersPage() {
             <p className="text-3xl font-bold text-foreground">{byVendor.length}</p>
             <p className="text-xs text-muted-foreground">različnih</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4 space-y-1">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Nujno (&le;14 dni)</p>
-            <p className="text-3xl font-bold text-orange-500">
-              {(orders as OrderSuggestion[] | undefined)?.filter((o) => o.lead_time_days <= 14).length ?? 0}
-            </p>
-            <p className="text-xs text-muted-foreground">materialov</p>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-1">
+            <p className="text-xs font-medium text-amber-600 uppercase tracking-wide">Brez količnika</p>
+            <p className="text-3xl font-bold text-amber-600">{missingMultiples}</p>
+            <p className="text-xs text-amber-500">artiklov</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-4 space-y-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Datum naročila</p>
@@ -179,7 +319,7 @@ export default function OrdersPage() {
           </div>
         )}
 
-        {/* Search + Export */}
+        {/* Search */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -238,6 +378,7 @@ export default function OrdersPage() {
                 )}
                 {sorted.map((o, i) => {
                   const badge = urgencyBadge(o.lead_time_days);
+                  const effectiveMultiple = localMultiples[o.st] ?? o.order_multiple;
                   return (
                     <tr
                       key={o.st}
@@ -246,6 +387,9 @@ export default function OrdersPage() {
                       <td className="px-4 py-3 font-mono text-xs font-medium text-foreground whitespace-nowrap">{o.st}</td>
                       <td className="px-4 py-3 text-foreground max-w-[280px]">
                         <span className="line-clamp-2">{o.opis}</span>
+                        <span className="text-[10px] text-muted-foreground block mt-0.5">
+                          Potrebno: {fmt(o.dejansko)}
+                        </span>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
@@ -268,20 +412,12 @@ export default function OrdersPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <div className="flex flex-col items-end gap-0.5">
-                          <span className="font-semibold text-foreground">{fmt(o.order_qty)}</span>
-                          {o.order_multiple > 0 ? (
-                            <span className="text-[10px] text-muted-foreground">× {fmt(o.order_multiple)}</span>
-                          ) : (
-                            <span
-                              className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1 py-0.5"
-                              title="Količnik za nabavo ni nastavljen. Nastavite ga v kartici artikla v BC (Načrtovanje → Naročilna serija)."
-                            >
-                              <AlertTriangle className="w-2.5 h-2.5" />
-                              Ni količnika
-                            </span>
-                          )}
-                        </div>
+                        <MultipleCell
+                          itemNo={o.st}
+                          dejansko={o.dejansko}
+                          currentMultiple={effectiveMultiple}
+                          onSaved={onMultipleSaved}
+                        />
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-1.5 text-foreground">
