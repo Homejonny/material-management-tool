@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Search, Printer, Mail, Building2, ChevronRight, RefreshCw } from "lucide-react";
+import { Search, Printer, Mail, Building2, ChevronRight, RefreshCw, FileText, User, Phone } from "lucide-react";
 
 type InquiryItem = {
   st: string;
