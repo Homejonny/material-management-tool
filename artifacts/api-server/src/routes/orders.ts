@@ -12,6 +12,7 @@ const router = Router();
 export type OrderSuggestion = {
   st: string;
   opis: string;
+  uom: string;
   dejansko: number;
   order_multiple: number;
   order_qty: number;
@@ -23,6 +24,28 @@ export type OrderSuggestion = {
   order_date: string;
   receipt_date: string;
   replenishment_system: string;
+};
+
+export type VendorInquiryGroup = {
+  vendor_no: string;
+  vendor_name: string;
+  vendor_name_2: string;
+  vendor_address: string;
+  vendor_post_code: string;
+  vendor_city: string;
+  vendor_country: string;
+  vendor_phone: string;
+  vendor_contact: string;
+  item_count: number;
+  items: Array<{
+    st: string;
+    opis: string;
+    uom: string;
+    order_qty: number;
+    vendor_item_no: string;
+    receipt_date: string;
+    order_date: string;
+  }>;
 };
 
 type BcItemPlanning = {
@@ -43,6 +66,13 @@ type BcWorkflowItem = {
 type BcVendor = {
   No: string;
   Name: string;
+  Name_2: string;
+  Address: string;
+  Post_Code: string;
+  City: string;
+  Country_Region_Code: string;
+  Phone_No: string;
+  Contact: string;
   Lead_Time_Calculation: string;
 };
 
@@ -134,7 +164,7 @@ async function fetchItemVendorPlanning(): Promise<Map<string, BcItemPlanning>> {
 
 async function fetchVendors(): Promise<Map<string, BcVendor>> {
   const rows = await paginatedFetch<BcVendor>(
-    `${BASE_URL}/Dobavitelji?$select=No,Name,Lead_Time_Calculation&$top=500`
+    `${BASE_URL}/Dobavitelji?$select=No,Name,Name_2,Address,Post_Code,City,Country_Region_Code,Phone_No,Contact,Lead_Time_Calculation&$top=500`
   );
   return new Map(rows.map((v) => [v.No.trim(), v]));
 }
@@ -243,6 +273,7 @@ async function getOrderSuggestions(log: (m: string) => void): Promise<OrderSugge
       return {
         st: key,
         opis: m.opis,
+        uom: m.uom,
         dejansko: m.dejansko,
         order_multiple: orderMultiple,
         order_qty: orderQty,
@@ -273,6 +304,57 @@ router.get("/orders", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Failed to load order suggestions");
     res.status(500).json({ error: "Failed to load order suggestions" });
+  }
+});
+
+// GET /orders/by-vendor — group order suggestions by vendor (for inquiry / RFQ)
+router.get("/orders/by-vendor", async (req, res) => {
+  try {
+    const [suggestions, vendorsMap] = await Promise.all([
+      getOrderSuggestions((m) => req.log.info(m)),
+      fetchVendors(),
+    ]);
+
+    const grouped = new Map<string, VendorInquiryGroup>();
+
+    for (const s of suggestions) {
+      const key = s.vendor_no || "NONE";
+      const vendor = s.vendor_no ? vendorsMap.get(s.vendor_no) : undefined;
+
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          vendor_no: s.vendor_no,
+          vendor_name: s.vendor_name,
+          vendor_name_2: vendor?.Name_2?.trim() ?? "",
+          vendor_address: vendor?.Address?.trim() ?? "",
+          vendor_post_code: vendor?.Post_Code?.trim() ?? "",
+          vendor_city: vendor?.City?.trim() ?? "",
+          vendor_country: vendor?.Country_Region_Code?.trim() ?? "",
+          vendor_phone: vendor?.Phone_No?.trim() ?? "",
+          vendor_contact: vendor?.Contact?.trim() ?? "",
+          item_count: 0,
+          items: [],
+        });
+      }
+
+      const group = grouped.get(key)!;
+      group.items.push({
+        st: s.st,
+        opis: s.opis,
+        uom: s.uom,
+        order_qty: s.order_qty,
+        vendor_item_no: s.vendor_item_no,
+        receipt_date: s.receipt_date,
+        order_date: s.order_date,
+      });
+      group.item_count++;
+    }
+
+    const result = [...grouped.values()].sort((a, b) => b.item_count - a.item_count);
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err }, "Failed to load vendor groups");
+    res.status(500).json({ error: "Failed to load vendor groups" });
   }
 });
 

@@ -4,7 +4,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import MaterialsPage from "@/pages/MaterialsPage";
 import SchedulePage from "@/pages/SchedulePage";
-import { Package, CalendarClock } from "lucide-react";
+import OrdersPage from "@/pages/OrdersPage";
+import InquiryPage from "@/pages/InquiryPage";
+import { Package, CalendarClock, ShoppingCart, FileText } from "lucide-react";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,35 +17,33 @@ const queryClient = new QueryClient({
   },
 });
 
-type Page = "materials" | "schedule";
+type Page = "materials" | "schedule" | "orders" | "inquiry";
 
 function Nav({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
+  const tabs: { id: Page; label: string; icon: React.ReactNode }[] = [
+    { id: "materials", label: "Pregled nabave", icon: <Package className="w-4 h-4" /> },
+    { id: "schedule", label: "Terminski plan", icon: <CalendarClock className="w-4 h-4" /> },
+    { id: "orders", label: "Predlog naročil", icon: <ShoppingCart className="w-4 h-4" /> },
+    { id: "inquiry", label: "Povpraševanje", icon: <FileText className="w-4 h-4" /> },
+  ];
   return (
-    <div className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
+    <div className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border print:hidden">
       <div className="max-w-[1600px] mx-auto px-6">
         <nav className="flex gap-1 h-12 items-center">
-          <button
-            onClick={() => setPage("materials")}
-            className={`inline-flex items-center gap-2 px-3 h-9 rounded-md text-sm font-medium transition-colors ${
-              page === "materials"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
-            }`}
-          >
-            <Package className="w-4 h-4" />
-            Pregled nabave
-          </button>
-          <button
-            onClick={() => setPage("schedule")}
-            className={`inline-flex items-center gap-2 px-3 h-9 rounded-md text-sm font-medium transition-colors ${
-              page === "schedule"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
-            }`}
-          >
-            <CalendarClock className="w-4 h-4" />
-            Terminski plan
-          </button>
+          {tabs.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setPage(t.id)}
+              className={`inline-flex items-center gap-2 px-3 h-9 rounded-md text-sm font-medium transition-colors ${
+                page === t.id
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
+            >
+              {t.icon}
+              {t.label}
+            </button>
+          ))}
         </nav>
       </div>
     </div>
@@ -59,6 +59,8 @@ function App() {
         <Nav page={page} setPage={setPage} />
         {page === "materials" && <MaterialsPage />}
         {page === "schedule" && <SchedulePage />}
+        {page === "orders" && <OrdersPage />}
+        {page === "inquiry" && <InquiryPage />}
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

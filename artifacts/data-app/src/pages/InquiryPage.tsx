@@ -1,0 +1,368 @@
+import { useState, useMemo, useEffect } from "react";
+import { Search, Printer, Mail, Package, Building2, Phone, ChevronRight, FileText, User } from "lucide-react";
+
+type InquiryItem = {
+  st: string;
+  opis: string;
+  uom: string;
+  order_qty: number;
+  vendor_item_no: string;
+  receipt_date: string;
+  order_date: string;
+};
+
+type VendorGroup = {
+  vendor_no: string;
+  vendor_name: string;
+  vendor_name_2: string;
+  vendor_address: string;
+  vendor_post_code: string;
+  vendor_city: string;
+  vendor_country: string;
+  vendor_phone: string;
+  vendor_contact: string;
+  item_count: number;
+  items: InquiryItem[];
+};
+
+const SENDER = {
+  name: "GMP Pharma d.o.o.",
+  address: "Trata 1b",
+  city: "4220 Škofja Loka",
+  country: "Slovenija",
+  phone: "+386 4 506 20 00",
+  email: "nabava@gmp-pharma.si",
+};
+
+function fmtDate(iso: string) {
+  if (!iso || iso === "—") return "—";
+  try {
+    return new Date(iso).toLocaleDateString("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric" });
+  } catch { return iso; }
+}
+
+function todayFmt() {
+  return new Date().toLocaleDateString("sl-SI", { day: "2-digit", month: "long", year: "numeric" });
+}
+
+function InquiryLetter({
+  vendor,
+  vendorEmail,
+}: {
+  vendor: VendorGroup;
+  vendorEmail: string;
+}) {
+  const addressLine = [vendor.vendor_post_code, vendor.vendor_city].filter(Boolean).join(" ");
+
+  return (
+    <div className="print-area bg-white rounded-lg border border-border shadow-sm p-10 max-w-3xl mx-auto font-sans text-sm text-gray-800">
+      <div className="flex items-start justify-between mb-8">
+        <div>
+          <div className="text-lg font-bold text-gray-900">{SENDER.name}</div>
+          <div className="text-gray-500 text-xs mt-1">{SENDER.address}, {SENDER.city}</div>
+          <div className="text-gray-500 text-xs">{SENDER.country}</div>
+          <div className="text-gray-500 text-xs mt-1">{SENDER.phone} · {SENDER.email}</div>
+        </div>
+        <div className="text-right text-xs text-gray-500">
+          <div className="font-semibold text-gray-700 mb-1">Datum</div>
+          <div>{todayFmt()}</div>
+        </div>
+      </div>
+
+      <div className="border-t border-gray-200 my-6" />
+
+      <div className="mb-6">
+        <div className="font-semibold text-gray-900">{vendor.vendor_name}</div>
+        {vendor.vendor_name_2 && <div className="text-gray-600">{vendor.vendor_name_2}</div>}
+        {vendor.vendor_contact && <div className="text-gray-600">g./ga. {vendor.vendor_contact}</div>}
+        {vendor.vendor_address && <div className="text-gray-600">{vendor.vendor_address}</div>}
+        {addressLine && <div className="text-gray-600">{addressLine}</div>}
+        {vendor.vendor_country && <div className="text-gray-600">{vendor.vendor_country}</div>}
+        {vendorEmail && <div className="text-gray-500 text-xs mt-1">{vendorEmail}</div>}
+        {vendor.vendor_phone && <div className="text-gray-500 text-xs">{vendor.vendor_phone}</div>}
+      </div>
+
+      <div className="mb-6">
+        <div className="font-bold text-gray-900 text-base">
+          Zadeva: Povpraševanje za dobavo materialov
+        </div>
+      </div>
+
+      <p className="text-gray-700 mb-2">Spoštovani,</p>
+      <p className="text-gray-700 mb-6">
+        v skladu z našimi trenutnimi potrebami za proizvodnjo vas prosimo za potrditev razpoložljivosti
+        in cen za spodaj navedene materiale. Prosimo za ponudbo s cenami in predvidenim datumom
+        dobave.
+      </p>
+
+      <table className="w-full border-collapse mb-6 text-xs">
+        <thead>
+          <tr className="bg-gray-100">
+            <th className="border border-gray-300 px-3 py-2 text-left font-semibold w-20">Šifra</th>
+            <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Opis materiala</th>
+            <th className="border border-gray-300 px-3 py-2 text-right font-semibold w-28">Količina</th>
+            <th className="border border-gray-300 px-3 py-2 text-center font-semibold w-16">Enota</th>
+            <th className="border border-gray-300 px-3 py-2 text-left font-semibold w-28">Šifra dob.</th>
+            <th className="border border-gray-300 px-3 py-2 text-center font-semibold w-28">Žel. datum</th>
+          </tr>
+        </thead>
+        <tbody>
+          {vendor.items.map((item, i) => (
+            <tr key={item.st} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+              <td className="border border-gray-300 px-3 py-1.5 font-mono">{item.st}</td>
+              <td className="border border-gray-300 px-3 py-1.5">{item.opis}</td>
+              <td className="border border-gray-300 px-3 py-1.5 text-right font-medium">
+                {item.order_qty.toLocaleString("sl-SI", { maximumFractionDigits: 2 })}
+              </td>
+              <td className="border border-gray-300 px-3 py-1.5 text-center">{item.uom || "—"}</td>
+              <td className="border border-gray-300 px-3 py-1.5 text-gray-500">{item.vendor_item_no || "—"}</td>
+              <td className="border border-gray-300 px-3 py-1.5 text-center">{fmtDate(item.receipt_date)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <p className="text-gray-700 mb-6">
+        Prosimo vas, da nam pošljete vašo ponudbo čim prej. Za morebitna vprašanja smo vam
+        na voljo na zgornji kontaktni številki ali e-poštnem naslovu.
+      </p>
+
+      <p className="text-gray-700 mb-8">Hvala za vaše hitro odzivanje in lep pozdrav,</p>
+
+      <div className="border-t border-gray-200 pt-4">
+        <div className="font-semibold text-gray-900">{SENDER.name}</div>
+        <div className="text-gray-500 text-xs">Sektor nabave</div>
+      </div>
+    </div>
+  );
+}
+
+export default function InquiryPage() {
+  const [vendors, setVendors] = useState<VendorGroup[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedVendorNo, setSelectedVendorNo] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [vendorEmails, setVendorEmails] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setLoading(true);
+    fetch("/api/orders/by-vendor")
+      .then((r) => r.json())
+      .then((data: VendorGroup[]) => {
+        setVendors(data);
+        const first = data.find(v => v.vendor_no);
+        setSelectedVendorNo((first ?? data[0])?.vendor_no || "NONE");
+        setLoading(false);
+      })
+      .catch((e) => { setError(String(e)); setLoading(false); });
+  }, []);
+
+  const filtered = useMemo(() => {
+    if (!vendors) return [];
+    if (!search) return vendors;
+    const q = search.toLowerCase();
+    return vendors.filter(v =>
+      v.vendor_name.toLowerCase().includes(q) ||
+      v.vendor_no.includes(q) ||
+      v.items.some(i => i.st.includes(q) || i.opis.toLowerCase().includes(q))
+    );
+  }, [vendors, search]);
+
+  const selectedVendor = useMemo(() =>
+    vendors?.find(v => (v.vendor_no || "NONE") === selectedVendorNo) ?? null,
+    [vendors, selectedVendorNo]
+  );
+
+  const currentEmail = selectedVendorNo ? (vendorEmails[selectedVendorNo] ?? "") : "";
+
+  function handlePrint() {
+    window.print();
+  }
+
+  function handleSendEmail() {
+    if (!selectedVendor) return;
+    const to = currentEmail;
+    const subject = encodeURIComponent("Povpraševanje za dobavo materialov");
+    const body = encodeURIComponent(
+      `Spoštovani${selectedVendor.vendor_contact ? ` ${selectedVendor.vendor_contact}` : ""},\n\n` +
+      `v skladu z našimi trenutnimi potrebami za proizvodnjo vas prosimo za potrditev razpoložljivosti in cen za naslednje materiale:\n\n` +
+      selectedVendor.items.map(i =>
+        `- ${i.st} | ${i.opis} | ${i.order_qty.toLocaleString("sl-SI", { maximumFractionDigits: 2 })} ${i.uom}`
+      ).join("\n") +
+      `\n\nHvala za vaše hitro odzivanje.\n\nLep pozdrav,\n${SENDER.name}\n${SENDER.phone}\n${SENDER.email}`
+    );
+    window.open(`mailto:${to}?subject=${subject}&body=${body}`);
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3" />
+          <p className="text-muted-foreground text-sm">Nalagam podatke o dobaviteljih...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center text-red-500">
+          <p className="font-semibold">Napaka pri nalaganju</p>
+          <p className="text-sm mt-1">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <style>{`
+        @media print {
+          body > * { display: none !important; }
+          .print-area { display: block !important; position: fixed; inset: 0; padding: 24mm 20mm; max-width: 100% !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; overflow: visible !important; }
+        }
+      `}</style>
+
+      <div className="max-w-[1600px] mx-auto px-6 py-6">
+        <div className="mb-5">
+          <h1 className="text-2xl font-bold text-foreground">Povpraševanje dobaviteljem</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Izberite dobavitelja, vnesite e-poštni naslov in natisnite ali pošljite povpraševanje
+          </p>
+        </div>
+
+        <div className="flex gap-6 items-start">
+          <aside className="w-72 flex-shrink-0 sticky top-20">
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Išči dobavitelja ali material..."
+                className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <div className="text-xs text-muted-foreground mb-2 px-1">
+              {filtered.length} dobaviteljev · {filtered.reduce((s, v) => s + v.item_count, 0)} materialov
+            </div>
+            <div className="space-y-1 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
+              {filtered.map(v => {
+                const key = v.vendor_no || "NONE";
+                const isSelected = key === selectedVendorNo;
+                const isUnknown = !v.vendor_no;
+                const email = vendorEmails[key] ?? "";
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedVendorNo(key)}
+                    className={`w-full text-left px-3 py-2.5 rounded-md text-sm transition-colors flex items-center justify-between gap-2 ${
+                      isSelected
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted text-foreground"
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className={`font-medium truncate ${isUnknown ? "italic" : ""}`}>
+                        {v.vendor_name}
+                      </div>
+                      <div className={`text-xs truncate ${isSelected ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                        {email || (v.vendor_phone ? v.vendor_phone : v.vendor_city || "ni kontakta")}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {email && (
+                        <Mail className={`w-3 h-3 ${isSelected ? "text-white" : "text-emerald-500"}`} />
+                      )}
+                      <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+                        isSelected ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                      }`}>
+                        {v.item_count}
+                      </span>
+                      <ChevronRight className={`w-3 h-3 flex-shrink-0 ${isSelected ? "text-white" : "text-muted-foreground"}`} />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </aside>
+
+          <div className="flex-1 min-w-0">
+            {selectedVendor ? (
+              <>
+                <div className="bg-muted/40 border border-border rounded-lg p-4 mb-4 flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Building2 className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-foreground truncate">{selectedVendor.vendor_name}</div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                        {selectedVendor.vendor_contact && (
+                          <span className="flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            {selectedVendor.vendor_contact}
+                          </span>
+                        )}
+                        {selectedVendor.vendor_phone && (
+                          <span className="flex items-center gap-1">
+                            <Phone className="w-3 h-3" />
+                            {selectedVendor.vendor_phone}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1">
+                          <Package className="w-3 h-3" />
+                          {selectedVendor.item_count} materialov
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                      <input
+                        type="email"
+                        value={currentEmail}
+                        onChange={e => setVendorEmails(prev => ({ ...prev, [selectedVendorNo!]: e.target.value }))}
+                        placeholder="E-pošta dobavitelja..."
+                        className="pl-8 pr-3 py-2 text-sm border border-border rounded-md bg-background w-56 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                    </div>
+                    <button
+                      onClick={handleSendEmail}
+                      disabled={!currentEmail}
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium border border-border hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      title={currentEmail ? "Odpri e-poštni odjemalec" : "Vnesite e-poštni naslov"}
+                    >
+                      <Mail className="w-4 h-4" />
+                      Pošlji
+                    </button>
+                    <button
+                      onClick={handlePrint}
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                    >
+                      <Printer className="w-4 h-4" />
+                      Natisni / PDF
+                    </button>
+                  </div>
+                </div>
+
+                <InquiryLetter vendor={selectedVendor} vendorEmail={currentEmail} />
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-64 text-muted-foreground">
+                <div className="text-center">
+                  <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>Izberite dobavitelja na levi strani</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
