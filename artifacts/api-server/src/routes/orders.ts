@@ -348,6 +348,7 @@ router.get("/orders/by-vendor", async (req, res) => {
     const grouped = new Map<string, VendorInquiryGroup>();
 
     for (const s of suggestions) {
+      if (s.replenishment_system === "Delovni nalog") continue;
       const key = s.vendor_no || "NONE";
       const vendor = s.vendor_no ? vendorsMap.get(s.vendor_no) : undefined;
 
