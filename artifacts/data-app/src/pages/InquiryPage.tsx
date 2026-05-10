@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Search, Printer, Mail, Package, Building2, Phone, ChevronRight, FileText, User } from "lucide-react";
+import { Search, Printer, Mail, Building2, ChevronRight, RefreshCw } from "lucide-react";
 
 type InquiryItem = {
   st: string;
@@ -179,18 +179,20 @@ export default function InquiryPage() {
   const [search, setSearch] = useState("");
   const [vendorEmails, setVendorEmails] = useState<Record<string, string>>({});
 
-  useEffect(() => {
+  const fetchData = () => {
     setLoading(true);
+    setError(null);
     fetch("/api/orders/by-vendor")
       .then((r) => r.json())
       .then((data: VendorGroup[]) => {
         setVendors(data);
-        const first = data.find(v => v.vendor_no);
-        setSelectedVendorNo((first ?? data[0])?.vendor_no || "NONE");
+        setSelectedVendorNo(prev => prev ?? ((data.find(v => v.vendor_no) ?? data[0])?.vendor_no || "NONE"));
         setLoading(false);
       })
       .catch((e) => { setError(String(e)); setLoading(false); });
-  }, []);
+  };
+
+  useEffect(() => { fetchData(); }, []);
 
   const filtered = useMemo(() => {
     if (!vendors) return [];
@@ -274,11 +276,21 @@ export default function InquiryPage() {
       `}</style>
 
       <div className="max-w-[1600px] mx-auto px-6 py-6">
-        <div className="mb-5">
-          <h1 className="text-2xl font-bold text-foreground">Povpraševanje dobaviteljem</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Izberite dobavitelja, vnesite e-poštni naslov in natisnite ali pošljite povpraševanje
-          </p>
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Povpraševanje dobaviteljem</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Izberite dobavitelja, vnesite e-poštni naslov in natisnite ali pošljite povpraševanje
+            </p>
+          </div>
+          <button
+            onClick={fetchData}
+            disabled={loading}
+            className="print:hidden flex items-center gap-2 px-3 py-1.5 text-sm border border-border rounded-md bg-background hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            Osveži
+          </button>
         </div>
 
         <div className="flex gap-6 items-start">
@@ -365,7 +377,6 @@ export default function InquiryPage() {
                           </span>
                         )}
                         <span className="flex items-center gap-1">
-                          <Package className="w-3 h-3" />
                           {selectedVendor.item_count} materialov
                         </span>
                       </div>
