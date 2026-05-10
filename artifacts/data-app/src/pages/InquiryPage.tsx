@@ -69,7 +69,7 @@ const T = {
   en: {
     dateLabel: "Date",
     contactPrefix: "Attn:",
-    subject: "Re: Request for Quotation — Raw Materials",
+    subject: "Subject: Request for Quotation — Raw Materials",
     greeting: "Dear Sir/Madam,",
     body: "In accordance with our current production requirements, we kindly request your confirmation of availability and pricing for the materials listed below. Please provide a quotation including unit prices and estimated delivery dates.",
     colCode: "Item No.",
