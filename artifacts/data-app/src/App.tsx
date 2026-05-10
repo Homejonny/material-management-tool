@@ -6,7 +6,8 @@ import MaterialsPage from "@/pages/MaterialsPage";
 import SchedulePage from "@/pages/SchedulePage";
 import OrdersPage from "@/pages/OrdersPage";
 import InquiryPage from "@/pages/InquiryPage";
-import { Package, CalendarClock, ShoppingCart, FileText } from "lucide-react";
+import QuotesPage from "@/pages/QuotesPage";
+import { Package, CalendarClock, ShoppingCart, FileText, Inbox } from "lucide-react";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,7 +18,7 @@ const queryClient = new QueryClient({
   },
 });
 
-type Page = "materials" | "schedule" | "orders" | "inquiry";
+type Page = "materials" | "schedule" | "orders" | "inquiry" | "quotes";
 
 function Nav({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
   const tabs: { id: Page; label: string; icon: React.ReactNode }[] = [
@@ -25,6 +26,7 @@ function Nav({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
     { id: "schedule", label: "Terminski plan", icon: <CalendarClock className="w-4 h-4" /> },
     { id: "orders", label: "Predlog naročil", icon: <ShoppingCart className="w-4 h-4" /> },
     { id: "inquiry", label: "Povpraševanje", icon: <FileText className="w-4 h-4" /> },
+    { id: "quotes", label: "Prejete ponudbe", icon: <Inbox className="w-4 h-4" /> },
   ];
   return (
     <div className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border print:hidden">
@@ -61,6 +63,7 @@ function App() {
         {page === "schedule" && <SchedulePage />}
         {page === "orders" && <OrdersPage />}
         {page === "inquiry" && <InquiryPage />}
+        {page === "quotes" && <QuotesPage />}
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
