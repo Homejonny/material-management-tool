@@ -140,6 +140,19 @@ function addDays(date: Date, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Returns ISO date string of the first working day (Mon–Fri) of the given year+month
+function firstWorkdayOfMonth(isoDate: string): string {
+  const d = new Date(isoDate);
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth();
+  const first = new Date(Date.UTC(y, m, 1));
+  // 0=Sun, 6=Sat → shift to next Monday
+  const dow = first.getUTCDay();
+  if (dow === 0) first.setUTCDate(2);       // Sunday → Monday
+  else if (dow === 6) first.setUTCDate(3);  // Saturday → Monday
+  return first.toISOString().slice(0, 10);
+}
+
 // Manual overrides stored in JSON file — these take priority over BC values
 let orderMultiplesOverrides: Record<string, number> | null = null;
 function getOrderMultiplesOverrides(): Record<string, number> {
@@ -297,7 +310,8 @@ async function getOrderSuggestions(log: (m: string) => void): Promise<OrderSugge
         ?? planDueDate
         ?? (leadTimeDays > 0 ? addDays(today, leadTimeDays) : "—");
 
-      const prodDueDate = prodNeedDates.get(key) ?? "";
+      const rawProdDue = prodNeedDates.get(key) ?? "";
+      const prodDueDate = rawProdDue ? firstWorkdayOfMonth(rawProdDue) : "";
 
       return {
         st: key,
