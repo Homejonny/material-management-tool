@@ -23,6 +23,7 @@ export type OrderSuggestion = {
   lead_time_days: number;
   order_date: string;
   receipt_date: string;
+  prod_due_date: string;
   replenishment_system: string;
 };
 
@@ -90,6 +91,15 @@ type PlanningRow = {
   Order_Date: string;
   Due_Date: string;
 };
+
+type ProdComp = {
+  Status: string;
+  Item_No: string;
+  Remaining_Quantity: number;
+  Due_Date: string;
+};
+
+const ACTIVE_STATUSES = new Set(["Načrtovano", "Potrjen", "Izdano", "Čvrsto načrtovano"]);
 
 const BASE_URL = process.env.BC_URL!;
 function bcAuth() {
@@ -193,6 +203,22 @@ async function fetchRecentPurchaseVendors(): Promise<Map<string, PurchaseLine>> 
   return map;
 }
 
+// Fetch earliest ProdOrderComponents Due_Date per item (terminski plan "Rok")
+async function fetchProdNeedDates(): Promise<Map<string, string>> {
+  const rows = await paginatedFetch<ProdComp>(
+    `${BASE_URL}/ProdOrderComponents?$select=Status,Item_No,Remaining_Quantity,Due_Date&$top=2000`
+  );
+  const map = new Map<string, string>();
+  for (const r of rows) {
+    const key = r.Item_No?.trim();
+    if (!key || !ACTIVE_STATUSES.has(r.Status) || r.Remaining_Quantity <= 0) continue;
+    if (!r.Due_Date || r.Due_Date <= "0001-01-01") continue;
+    const existing = map.get(key);
+    if (!existing || r.Due_Date < existing) map.set(key, r.Due_Date);
+  }
+  return map;
+}
+
 // Fetch planning worksheet dates per item (earliest order_date)
 async function fetchPlanningDates(): Promise<Map<string, { orderDate: string; dueDate: string }>> {
   const rows = await paginatedFetch<PlanningRow>(
@@ -217,13 +243,14 @@ async function getOrderSuggestions(log: (m: string) => void): Promise<OrderSugge
   if (ordersCache && Date.now() - ordersCache.fetchedAt < CACHE_TTL) return ordersCache.data;
 
   log("Fetching BC vendor, purchase, planning dates and order multiples...");
-  const [materials, itemVendorMap, vendorsMap, purchaseMap, planningDates, bcMultiplesMap] = await Promise.all([
+  const [materials, itemVendorMap, vendorsMap, purchaseMap, planningDates, bcMultiplesMap, prodNeedDates] = await Promise.all([
     getMaterialsWithLiveData(log),
     fetchItemVendorPlanning(),
     fetchVendors(),
     fetchRecentPurchaseVendors(),
     fetchPlanningDates(),
     fetchBcOrderMultiples(),
+    fetchProdNeedDates(),
   ]);
   log(`Loaded ${itemVendorMap.size} items, ${vendorsMap.size} vendors, ${purchaseMap.size} purchase lines, ${bcMultiplesMap.size} BC order multiples`);
 
@@ -270,6 +297,8 @@ async function getOrderSuggestions(log: (m: string) => void): Promise<OrderSugge
         ?? planDueDate
         ?? (leadTimeDays > 0 ? addDays(today, leadTimeDays) : "—");
 
+      const prodDueDate = prodNeedDates.get(key) ?? "";
+
       return {
         st: key,
         opis: m.opis,
@@ -284,6 +313,7 @@ async function getOrderSuggestions(log: (m: string) => void): Promise<OrderSugge
         lead_time_days: leadTimeDays,
         order_date: orderDate,
         receipt_date: receiptDate,
+        prod_due_date: prodDueDate,
         replenishment_system: bcItem?.Replenishment_System ?? "",
       };
     })
@@ -344,7 +374,7 @@ router.get("/orders/by-vendor", async (req, res) => {
         uom: s.uom,
         order_qty: s.order_qty,
         vendor_item_no: s.vendor_item_no,
-        receipt_date: s.receipt_date,
+        receipt_date: s.prod_due_date || s.receipt_date,
         order_date: s.order_date,
       });
       group.item_count++;
