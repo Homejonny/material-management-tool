@@ -27,8 +27,8 @@ type VendorGroup = {
 
 const SENDER = {
   name: "GMP Pharma d.o.o.",
-  address: "Trata 1b",
-  city: "4220 Škofja Loka",
+  address: "Obrtna cona Logatec 10",
+  city: "1370 Logatec",
   country: "Slovenija",
   phone: "+386 4 506 20 00",
   email: "nabava@gmp-pharma.si",
