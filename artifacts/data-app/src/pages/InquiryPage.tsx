@@ -45,6 +45,45 @@ function todayFmt() {
   return new Date().toLocaleDateString("sl-SI", { day: "2-digit", month: "long", year: "numeric" });
 }
 
+function isEnglish(country: string) {
+  return country !== "" && country !== "SI";
+}
+
+const T = {
+  sl: {
+    dateLabel: "Datum",
+    contactPrefix: "g./ga.",
+    subject: "Zadeva: Povpraševanje za dobavo materialov",
+    greeting: "Spoštovani,",
+    body: "v skladu z našimi trenutnimi potrebami za proizvodnjo vas prosimo za potrditev razpoložljivosti in cen za spodaj navedene materiale. Prosimo za ponudbo s cenami in predvidenim datumom dobave.",
+    colCode: "Šifra",
+    colDesc: "Opis materiala",
+    colQty: "Količina",
+    colUnit: "Enota",
+    colVendorRef: "Šifra dob.",
+    colDate: "Žel. datum",
+    closing: "Prosimo vas, da nam pošljete vašo ponudbo čim prej. Za morebitna vprašanja smo vam na voljo na zgornji kontaktni številki ali e-poštnem naslovu.",
+    farewell: "Hvala za vaše hitro odzivanje in lep pozdrav,",
+    dept: "Sektor nabave",
+  },
+  en: {
+    dateLabel: "Date",
+    contactPrefix: "Attn:",
+    subject: "Re: Request for Quotation — Raw Materials",
+    greeting: "Dear Sir/Madam,",
+    body: "In accordance with our current production requirements, we kindly request your confirmation of availability and pricing for the materials listed below. Please provide a quotation including unit prices and estimated delivery dates.",
+    colCode: "Item No.",
+    colDesc: "Material Description",
+    colQty: "Quantity",
+    colUnit: "Unit",
+    colVendorRef: "Vendor Ref.",
+    colDate: "Req. Date",
+    closing: "Please send us your quotation at your earliest convenience. Should you have any questions, do not hesitate to contact us at the details above.",
+    farewell: "Thank you for your prompt response. Kind regards,",
+    dept: "Procurement Department",
+  },
+};
+
 function InquiryLetter({
   vendor,
   vendorEmail,
@@ -52,7 +91,10 @@ function InquiryLetter({
   vendor: VendorGroup;
   vendorEmail: string;
 }) {
+  const eng = isEnglish(vendor.vendor_country);
+  const t = eng ? T.en : T.sl;
   const addressLine = [vendor.vendor_post_code, vendor.vendor_city].filter(Boolean).join(" ");
+  const numFmt = eng ? "en-GB" : "sl-SI";
 
   return (
     <div className="print-area bg-white rounded-lg border border-border shadow-sm p-10 max-w-3xl mx-auto font-sans text-sm text-gray-800">
@@ -64,7 +106,7 @@ function InquiryLetter({
           <div className="text-gray-500 text-xs mt-1">{SENDER.phone} · {SENDER.email}</div>
         </div>
         <div className="text-right text-xs text-gray-500">
-          <div className="font-semibold text-gray-700 mb-1">Datum</div>
+          <div className="font-semibold text-gray-700 mb-1">{t.dateLabel}</div>
           <div>{todayFmt()}</div>
         </div>
       </div>
@@ -74,7 +116,9 @@ function InquiryLetter({
       <div className="mb-6">
         <div className="font-semibold text-gray-900">{vendor.vendor_name}</div>
         {vendor.vendor_name_2 && <div className="text-gray-600">{vendor.vendor_name_2}</div>}
-        {vendor.vendor_contact && <div className="text-gray-600">g./ga. {vendor.vendor_contact}</div>}
+        {vendor.vendor_contact && (
+          <div className="text-gray-600">{t.contactPrefix} {vendor.vendor_contact}</div>
+        )}
         {vendor.vendor_address && <div className="text-gray-600">{vendor.vendor_address}</div>}
         {addressLine && <div className="text-gray-600">{addressLine}</div>}
         {vendor.vendor_country && <div className="text-gray-600">{vendor.vendor_country}</div>}
@@ -83,27 +127,21 @@ function InquiryLetter({
       </div>
 
       <div className="mb-6">
-        <div className="font-bold text-gray-900 text-base">
-          Zadeva: Povpraševanje za dobavo materialov
-        </div>
+        <div className="font-bold text-gray-900 text-base">{t.subject}</div>
       </div>
 
-      <p className="text-gray-700 mb-2">Spoštovani,</p>
-      <p className="text-gray-700 mb-6">
-        v skladu z našimi trenutnimi potrebami za proizvodnjo vas prosimo za potrditev razpoložljivosti
-        in cen za spodaj navedene materiale. Prosimo za ponudbo s cenami in predvidenim datumom
-        dobave.
-      </p>
+      <p className="text-gray-700 mb-2">{t.greeting}</p>
+      <p className="text-gray-700 mb-6">{t.body}</p>
 
       <table className="w-full border-collapse mb-6 text-xs">
         <thead>
           <tr className="bg-gray-100">
-            <th className="border border-gray-300 px-3 py-2 text-left font-semibold w-20">Šifra</th>
-            <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Opis materiala</th>
-            <th className="border border-gray-300 px-3 py-2 text-right font-semibold w-28">Količina</th>
-            <th className="border border-gray-300 px-3 py-2 text-center font-semibold w-16">Enota</th>
-            <th className="border border-gray-300 px-3 py-2 text-left font-semibold w-28">Šifra dob.</th>
-            <th className="border border-gray-300 px-3 py-2 text-center font-semibold w-28">Žel. datum</th>
+            <th className="border border-gray-300 px-3 py-2 text-left font-semibold w-20">{t.colCode}</th>
+            <th className="border border-gray-300 px-3 py-2 text-left font-semibold">{t.colDesc}</th>
+            <th className="border border-gray-300 px-3 py-2 text-right font-semibold w-28">{t.colQty}</th>
+            <th className="border border-gray-300 px-3 py-2 text-center font-semibold w-16">{t.colUnit}</th>
+            <th className="border border-gray-300 px-3 py-2 text-left font-semibold w-28">{t.colVendorRef}</th>
+            <th className="border border-gray-300 px-3 py-2 text-center font-semibold w-28">{t.colDate}</th>
           </tr>
         </thead>
         <tbody>
@@ -112,7 +150,7 @@ function InquiryLetter({
               <td className="border border-gray-300 px-3 py-1.5 font-mono">{item.st}</td>
               <td className="border border-gray-300 px-3 py-1.5">{item.opis}</td>
               <td className="border border-gray-300 px-3 py-1.5 text-right font-medium">
-                {item.order_qty.toLocaleString("sl-SI", { maximumFractionDigits: 2 })}
+                {item.order_qty.toLocaleString(numFmt, { maximumFractionDigits: 2 })}
               </td>
               <td className="border border-gray-300 px-3 py-1.5 text-center">{item.uom || "—"}</td>
               <td className="border border-gray-300 px-3 py-1.5 text-gray-500">{item.vendor_item_no || "—"}</td>
@@ -122,16 +160,12 @@ function InquiryLetter({
         </tbody>
       </table>
 
-      <p className="text-gray-700 mb-6">
-        Prosimo vas, da nam pošljete vašo ponudbo čim prej. Za morebitna vprašanja smo vam
-        na voljo na zgornji kontaktni številki ali e-poštnem naslovu.
-      </p>
-
-      <p className="text-gray-700 mb-8">Hvala za vaše hitro odzivanje in lep pozdrav,</p>
+      <p className="text-gray-700 mb-6">{t.closing}</p>
+      <p className="text-gray-700 mb-8">{t.farewell}</p>
 
       <div className="border-t border-gray-200 pt-4">
         <div className="font-semibold text-gray-900">{SENDER.name}</div>
-        <div className="text-gray-500 text-xs">Sektor nabave</div>
+        <div className="text-gray-500 text-xs">{t.dept}</div>
       </div>
     </div>
   );
@@ -183,14 +217,27 @@ export default function InquiryPage() {
   function handleSendEmail() {
     if (!selectedVendor) return;
     const to = currentEmail;
-    const subject = encodeURIComponent("Povpraševanje za dobavo materialov");
+    const eng = isEnglish(selectedVendor.vendor_country);
+    const numFmt = eng ? "en-GB" : "sl-SI";
+    const subject = encodeURIComponent(
+      eng
+        ? "Request for Quotation — Raw Materials"
+        : "Povpraševanje za dobavo materialov"
+    );
     const body = encodeURIComponent(
-      `Spoštovani${selectedVendor.vendor_contact ? ` ${selectedVendor.vendor_contact}` : ""},\n\n` +
-      `v skladu z našimi trenutnimi potrebami za proizvodnjo vas prosimo za potrditev razpoložljivosti in cen za naslednje materiale:\n\n` +
-      selectedVendor.items.map(i =>
-        `- ${i.st} | ${i.opis} | ${i.order_qty.toLocaleString("sl-SI", { maximumFractionDigits: 2 })} ${i.uom}`
-      ).join("\n") +
-      `\n\nHvala za vaše hitro odzivanje.\n\nLep pozdrav,\n${SENDER.name}\n${SENDER.phone}\n${SENDER.email}`
+      eng
+        ? `Dear${selectedVendor.vendor_contact ? ` ${selectedVendor.vendor_contact}` : " Sir/Madam"},\n\n` +
+          `In accordance with our current production requirements, we kindly request your confirmation of availability and pricing for the following materials:\n\n` +
+          selectedVendor.items.map(i =>
+            `- ${i.st} | ${i.opis} | ${i.order_qty.toLocaleString(numFmt, { maximumFractionDigits: 2 })} ${i.uom}`
+          ).join("\n") +
+          `\n\nPlease send us your quotation at your earliest convenience.\n\nKind regards,\n${SENDER.name}\nProcurement Department\n${SENDER.phone}\n${SENDER.email}`
+        : `Spoštovani${selectedVendor.vendor_contact ? ` ${selectedVendor.vendor_contact}` : ""},\n\n` +
+          `v skladu z našimi trenutnimi potrebami za proizvodnjo vas prosimo za potrditev razpoložljivosti in cen za naslednje materiale:\n\n` +
+          selectedVendor.items.map(i =>
+            `- ${i.st} | ${i.opis} | ${i.order_qty.toLocaleString(numFmt, { maximumFractionDigits: 2 })} ${i.uom}`
+          ).join("\n") +
+          `\n\nHvala za vaše hitro odzivanje.\n\nLep pozdrav,\n${SENDER.name}\nSektor nabave\n${SENDER.phone}\n${SENDER.email}`
     );
     window.open(`mailto:${to}?subject=${subject}&body=${body}`);
   }
@@ -275,6 +322,11 @@ export default function InquiryPage() {
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       {email && (
                         <Mail className={`w-3 h-3 ${isSelected ? "text-white" : "text-emerald-500"}`} />
+                      )}
+                      {isEnglish(v.vendor_country) && (
+                        <span className={`text-[10px] font-bold px-1 py-0.5 rounded ${
+                          isSelected ? "bg-white/20 text-white" : "bg-blue-100 text-blue-600"
+                        }`} title="Tuj dobavitelj — dopis v angleščini">EN</span>
                       )}
                       <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
                         isSelected ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
