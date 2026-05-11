@@ -125,7 +125,8 @@ async function fetchPurchasePriceMap(): Promise<Map<string, number>> {
   try {
     const today = new Date().toISOString().slice(0, 10);
     // Try known BC OData names for the Purchase Price table (7012)
-    const candidates = ["purchasePrices", "purchasePrice", "PurchasePrice", "PurchasePrices"];
+    // "purchasePrice" confirmed working by debug endpoint
+    const candidates = ["purchasePrice", "purchasePrices", "PurchasePrice", "PurchasePrices"];
     let rows: BcPurchasePrice[] = [];
     let usedEndpoint = "";
     for (const name of candidates) {
