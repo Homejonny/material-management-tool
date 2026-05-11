@@ -145,7 +145,11 @@ function InquiryLetter({
           </tr>
         </thead>
         <tbody>
-          {vendor.items.map((item, i) => (
+          {[...vendor.items].sort((a, b) => {
+            const dateCmp = (a.receipt_date || "").localeCompare(b.receipt_date || "");
+            if (dateCmp !== 0) return dateCmp;
+            return a.st.localeCompare(b.st);
+          }).map((item, i) => (
             <tr key={item.st} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
               <td className="border border-gray-300 px-3 py-1.5 font-mono">{item.st}</td>
               <td className="border border-gray-300 px-3 py-1.5">{item.opis}</td>
