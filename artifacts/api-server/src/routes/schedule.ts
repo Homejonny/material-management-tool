@@ -1,10 +1,4 @@
 import { Router } from "express";
-import { readFileSync } from "fs";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const router = Router();
 
@@ -60,13 +54,6 @@ type ProdComp = {
   Due_Date: string;
   Unit_Cost: number;
 };
-
-let subsMap: Record<string, string[]> | null = null;
-function getSubstitutesMap(): Record<string, string[]> {
-  if (subsMap) return subsMap;
-  subsMap = JSON.parse(readFileSync(join(__dirname, "../data/substitutes-map.json"), "utf-8"));
-  return subsMap!;
-}
 
 const BASE_URL = process.env.BC_URL!;
 function bcAuth() {
@@ -135,19 +122,8 @@ export async function getScheduleLines(log: (m: string) => void): Promise<Schedu
   ]);
   log(`Loaded ${itemsMap.size} items, ${vendorsMap.size} vendors, ${prodComps.length} prod components`);
 
-  const substitutesMap = getSubstitutesMap();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-
-  // Pre-compute sub stocks per item (in item's own UoM)
-  const subStockCache = new Map<string, number>();
-  const getSubStock = (itemNo: string): number => {
-    if (subStockCache.has(itemNo)) return subStockCache.get(itemNo)!;
-    const subs = substitutesMap[itemNo] ?? [];
-    const total = subs.reduce((s, sNo) => s + (itemsMap.get(sNo)?.InventoryField ?? 0), 0);
-    subStockCache.set(itemNo, total);
-    return total;
-  };
 
   const lines: ScheduleLine[] = prodComps
     .filter((r) => ACTIVE_STATUSES.has(r.Status) && r.Item_No?.trim() && r.Remaining_Quantity > 0 && !EXCLUDED_ITEMS.has(r.Item_No.trim()))
@@ -166,7 +142,8 @@ export async function getScheduleLines(log: (m: string) => void): Promise<Schedu
       const ltDays = parseLeadTimeDays(rawLT);
 
       const itemStock = bcItem?.InventoryField ?? 0;
-      const subStock = getSubStock(key);
+      // NOTE: BC OData for table 5715 (item substitutes) not published — sub_stock always 0
+      const subStock = 0;
       const totalAvailable = itemStock + subStock;
 
       let urgencyDays = 9999;

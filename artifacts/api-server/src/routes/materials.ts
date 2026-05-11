@@ -1,10 +1,4 @@
 import { Router } from "express";
-import { readFileSync } from "fs";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const router = Router();
 
@@ -25,6 +19,7 @@ type BcItem = {
   Unit_Cost: number;
   Base_Unit_of_Measure: string;
   Replenishment_System: string;
+  Substitutes_Exist: boolean;
 };
 
 type ProdComp = {
@@ -50,16 +45,9 @@ export type Material = {
   dejansko: number;
   order_multiple: number;
   order_qty: number;
+  has_substitutes: boolean;
   nadomestki: Array<{ st: string; opis: string; zaloga: number; cena: number; uom: string }>;
 };
-
-let subsMap: Record<string, string[]> | null = null;
-function getSubstitutesMap(): Record<string, string[]> {
-  if (subsMap) return subsMap;
-  const p = join(__dirname, "../data/substitutes-map.json");
-  subsMap = JSON.parse(readFileSync(p, "utf-8"));
-  return subsMap!;
-}
 
 const BASE_URL = process.env.BC_URL!;
 function bcAuth() {
@@ -102,7 +90,7 @@ async function fetchBcOrderMultiples(): Promise<Map<string, number>> {
 
 async function fetchBcItems(): Promise<Map<string, BcItem>> {
   const rows = await paginatedFetch<BcItem>(
-    `${BASE_URL}/Item?$select=No,Description,InventoryField,Unit_Cost,Base_Unit_of_Measure,Replenishment_System&$top=500`
+    `${BASE_URL}/Item?$select=No,Description,InventoryField,Unit_Cost,Base_Unit_of_Measure,Replenishment_System,Substitutes_Exist&$top=500`
   );
   return new Map(rows.map((r) => [r.No.trim(), r]));
 }
@@ -212,7 +200,6 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
   const prodNeeds = await fetchProdNeeds(itemsMap);
   log(`BC: ${itemsMap.size} items, ${prodNeeds.size} items with active production needs, ${purchasePriceCount} purchase prices loaded${purchasePriceError ? " | CENIK ERROR: " + purchasePriceError : ""}`);
 
-  const substitutesMap = getSubstitutesMap();
   const materials: Material[] = [];
 
   for (const [itemNo, need] of prodNeeds) {
@@ -222,6 +209,7 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
     const uom = bcItem?.Base_Unit_of_Measure ?? "";
     const replenishment = bcItem?.Replenishment_System ?? "";
     const opis = bcItem?.Description ?? itemNo;
+    const has_substitutes = bcItem?.Substitutes_Exist ?? false;
 
     let cena = unitCost;
     let price_source: Material["price_source"] = "unit_cost";
@@ -237,24 +225,16 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
       }
     }
 
-    const subNos = substitutesMap[itemNo] ?? [];
-    const nadomestki = subNos.map((sNo) => {
-      const sub = itemsMap.get(sNo);
-      return {
-        st: sNo,
-        opis: sub?.Description ?? sNo,
-        zaloga: sub?.InventoryField ?? 0,
-        cena: sub?.Unit_Cost ?? 0,
-        uom: sub?.Base_Unit_of_Measure ?? "",
-      };
-    });
-
-    const totalSubStock = nadomestki.reduce((s, n) => s + n.zaloga, 0);
+    // NOTE: BC OData page for item substitutes (table 5715) is not correctly published.
+    // Specific substitute item numbers are unavailable via OData.
+    // has_substitutes reflects BC's Substitutes_Exist flag; nadomestki stays empty until BC admin publishes table 5715.
+    const nadomestki: Material["nadomestki"] = [];
+    const totalSubStock = 0;
     const dejansko = Math.max(0, need.qty - zaloga - totalSubStock);
     const order_multiple = bcMultiplesMap.get(itemNo) ?? 0;
     const order_qty = order_multiple > 0 ? Math.ceil(dejansko / order_multiple) * order_multiple : dejansko;
 
-    materials.push({ st: itemNo, opis, zaloga, cena, price_source, uom, replenishment, kolicina: need.qty, totalSubStock, dejansko, order_multiple, order_qty, nadomestki });
+    materials.push({ st: itemNo, opis, zaloga, cena, price_source, uom, replenishment, kolicina: need.qty, totalSubStock, dejansko, order_multiple, order_qty, has_substitutes, nadomestki });
   }
 
   // Default sort: price descending (most expensive first)

@@ -1,21 +1,11 @@
 import { Router } from "express";
-import { readFileSync } from "fs";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
 import multer from "multer";
 import { db, vendorQuotesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { openai } from "@workspace/integrations-openai-ai-server";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
-
-function getSubstitutesMap(): Record<string, string[]> {
-  return JSON.parse(readFileSync(join(__dirname, "../data/substitutes-map.json"), "utf-8"));
-}
 
 type ParsedQuoteLine = {
   vendor_name: string;
@@ -166,40 +156,27 @@ router.delete("/quotes/:id", async (req, res) => {
   }
 });
 
-// GET /api/quotes/comparison — comparison grouped by material, incl. substitute groups
+// GET /api/quotes/comparison — comparison grouped by material
+// NOTE: substitute grouping removed — BC OData for table 5715 not published
 router.get("/quotes/comparison", async (req, res) => {
   try {
-    const [rows] = await Promise.all([
-      db.select().from(vendorQuotesTable).orderBy(vendorQuotesTable.createdAt),
-    ]);
+    const rows = await db.select().from(vendorQuotesTable).orderBy(vendorQuotesTable.createdAt);
 
-    const subsMap = getSubstitutesMap();
-
-    // Build reverse map: sub → canonical item
-    const subToCanonical = new Map<string, string>();
-    for (const [canonical, subs] of Object.entries(subsMap)) {
-      for (const sub of subs) subToCanonical.set(sub, canonical);
-    }
-
-    // Group rows by canonical item (or own item_no)
     const groups = new Map<string, typeof rows>();
     for (const row of rows) {
       const key = row.itemNo?.trim();
       if (!key) continue;
-      const canonical = subToCanonical.get(key) ?? key;
-      if (!groups.has(canonical)) groups.set(canonical, []);
-      groups.get(canonical)!.push(row);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(row);
     }
 
-    const result = [...groups.entries()].map(([canonical, quotes]) => {
-      const substitutes = subsMap[canonical] ?? [];
+    const result = [...groups.entries()].map(([itemNo, quotes]) => {
       const prices = quotes.filter((q) => q.price != null).map((q) => parseFloat(String(q.price)));
       const minPrice = prices.length > 0 ? Math.min(...prices) : null;
-
       return {
-        canonical_item_no: canonical,
-        has_substitutes: substitutes.length > 0,
-        substitute_item_nos: substitutes,
+        canonical_item_no: itemNo,
+        has_substitutes: false,
+        substitute_item_nos: [] as string[],
         quotes: quotes.map((q) => ({
           ...q,
           price: q.price != null ? parseFloat(String(q.price)) : null,
@@ -207,10 +184,7 @@ router.get("/quotes/comparison", async (req, res) => {
           is_best_price: q.price != null && parseFloat(String(q.price)) === minPrice,
         })),
       };
-    }).sort((a, b) => {
-      if (a.has_substitutes !== b.has_substitutes) return a.has_substitutes ? -1 : 1;
-      return a.canonical_item_no.localeCompare(b.canonical_item_no);
-    });
+    }).sort((a, b) => a.canonical_item_no.localeCompare(b.canonical_item_no));
 
     res.json(result);
   } catch (err) {

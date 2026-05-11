@@ -33,6 +33,7 @@ type Material = {
   dejansko: number;
   order_multiple: number;
   order_qty: number;
+  has_substitutes: boolean;
   nadomestki: Substitute[];
 };
 
@@ -76,9 +77,17 @@ function StatusBadge({ dejansko, kolicina }: { dejansko: number; kolicina: numbe
   );
 }
 
-function SubstitutesDropdown({ nadomestki }: { nadomestki: Substitute[] }) {
+function SubstitutesDropdown({ nadomestki, has_substitutes }: { nadomestki: Substitute[]; has_substitutes: boolean }) {
   const [open, setOpen] = useState(false);
   if (nadomestki.length === 0) {
+    if (has_substitutes) {
+      return (
+        <span className="inline-flex items-center gap-1 text-xs text-amber-600" title="Nadomestki obstajajo v BC, a OData stran za tabelo 5715 ni objavljena.">
+          <Package className="w-3 h-3" />
+          Ima nadomestke*
+        </span>
+      );
+    }
     return <span className="text-muted-foreground text-xs">—</span>;
   }
   return (
@@ -272,7 +281,7 @@ export default function MaterialsPage() {
       size: 200,
       enableSorting: false,
       filterFn: undefined,
-      cell: ({ row }) => <SubstitutesDropdown nadomestki={row.original.nadomestki} />,
+      cell: ({ row }) => <SubstitutesDropdown nadomestki={row.original.nadomestki} has_substitutes={row.original.has_substitutes} />,
     },
   ], []);
 
@@ -350,7 +359,7 @@ export default function MaterialsPage() {
           <div className="flex items-center gap-3">
             {name && <PresenceBar name={name} />}
             <button
-              onClick={() => refreshMaterials({})}
+              onClick={() => refreshMaterials()}
               disabled={isRefreshing}
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border border-border bg-card text-foreground hover:bg-muted transition-colors disabled:opacity-50"
               title="Prisilna osvežitev podatkov iz BC"
