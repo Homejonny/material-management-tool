@@ -116,14 +116,40 @@ type BcPurchasePrice = {
   Ending_Date: string;
 };
 
+let purchasePriceError: string | null = null;
+let purchasePriceCount: number = 0;
+
 async function fetchPurchasePriceMap(): Promise<Map<string, number>> {
   const map = new Map<string, number>();
+  purchasePriceError = null;
   try {
     const today = new Date().toISOString().slice(0, 10);
-    const rows = await paginatedFetch<BcPurchasePrice>(
-      `${BASE_URL}/purchasePrices?$select=Item_No,Vendor_No,Direct_Unit_Cost,Minimum_Quantity,Starting_Date,Ending_Date&$top=2000`
-    );
-    // For each item keep the lowest valid price (valid date range, qty = 0 or lowest)
+    // Try known BC OData names for the Purchase Price table (7012)
+    const candidates = ["purchasePrices", "purchasePrice", "PurchasePrice", "PurchasePrices"];
+    let rows: BcPurchasePrice[] = [];
+    let usedEndpoint = "";
+    for (const name of candidates) {
+      try {
+        const url = `${BASE_URL}/${name}?$select=Item_No,Vendor_No,Direct_Unit_Cost,Minimum_Quantity,Starting_Date,Ending_Date&$top=2000`;
+        rows = await paginatedFetch<BcPurchasePrice>(url);
+        usedEndpoint = name;
+        break;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        // 404 or similar — try next candidate
+        if (!msg.includes("404") && !msg.includes("400")) {
+          throw e; // unexpected error — propagate
+        }
+      }
+    }
+
+    if (!usedEndpoint) {
+      purchasePriceError = "Endpoint za tabelo 7012 ni bil najden (preizkušeno: " + candidates.join(", ") + "). Prosim preverite ime OData strani v BC.";
+      purchasePriceCount = 0;
+      return map;
+    }
+
+    // For each item keep the lowest valid price (valid date range)
     for (const r of rows) {
       const key = r.Item_No?.trim();
       if (!key || !r.Direct_Unit_Cost || r.Direct_Unit_Cost <= 0) continue;
@@ -135,8 +161,10 @@ async function fetchPurchasePriceMap(): Promise<Map<string, number>> {
         map.set(key, r.Direct_Unit_Cost);
       }
     }
-  } catch {
-    // Table not accessible — silently skip, items will be flagged as "missing"
+    purchasePriceCount = map.size;
+  } catch (e: unknown) {
+    purchasePriceError = e instanceof Error ? e.message : String(e);
+    purchasePriceCount = 0;
   }
   return map;
 }
@@ -181,7 +209,7 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
     fetchPurchasePriceMap(),
   ]);
   const prodNeeds = await fetchProdNeeds(itemsMap);
-  log(`BC: ${itemsMap.size} items, ${prodNeeds.size} items with active production needs`);
+  log(`BC: ${itemsMap.size} items, ${prodNeeds.size} items with active production needs, ${purchasePriceCount} purchase prices loaded${purchasePriceError ? " | CENIK ERROR: " + purchasePriceError : ""}`);
 
   const substitutesMap = getSubstitutesMap();
   const materials: Material[] = [];
@@ -236,6 +264,26 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
 }
 
 export function invalidateMaterialsCache() { bcCache = null; }
+
+// Diagnostic endpoint — returns raw purchase price rows from BC
+router.get("/materials/purchase-prices-debug", async (req, res) => {
+  const candidates = ["purchasePrices", "purchasePrice", "PurchasePrice", "PurchasePrices"];
+  for (const name of candidates) {
+    try {
+      const url = `${BASE_URL}/${name}?$top=20`;
+      const rows = await paginatedFetch<Record<string, unknown>>(url);
+      res.json({ endpoint: name, count: rows.length, sample: rows.slice(0, 5) });
+      return;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!msg.includes("404") && !msg.includes("400")) {
+        res.status(500).json({ error: msg, tried: name });
+        return;
+      }
+    }
+  }
+  res.status(404).json({ error: "Noben endpoint ni deloval", tried: candidates });
+});
 
 router.get("/materials", async (req, res) => {
   try {
