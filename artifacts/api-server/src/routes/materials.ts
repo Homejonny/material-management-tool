@@ -95,6 +95,30 @@ async function fetchBcItems(): Promise<Map<string, BcItem>> {
   return new Map(rows.map((r) => [r.No.trim(), r]));
 }
 
+type BcItemSubstitution = {
+  No: string;           // the substitute item
+  Substitute_No: string; // the main item (the one being substituted)
+  Type: string;
+  Substitute_Type: string;
+  Interchangeable: boolean;
+};
+
+// Returns map: mainItemNo → [substituteItemNo, ...]
+async function fetchBcSubstitutesMap(): Promise<Record<string, string[]>> {
+  const rows = await paginatedFetch<BcItemSubstitution>(
+    `${BASE_URL}/Item_Substitution?$select=No,Substitute_No,Type,Substitute_Type,Interchangeable&$top=2000`
+  );
+  const map: Record<string, string[]> = {};
+  for (const r of rows) {
+    const mainNo = r.Substitute_No?.trim();
+    const subNo = r.No?.trim();
+    if (!mainNo || !subNo) continue;
+    if (!map[mainNo]) map[mainNo] = [];
+    if (!map[mainNo].includes(subNo)) map[mainNo].push(subNo);
+  }
+  return map;
+}
+
 type BcPurchasePrice = {
   Item_No: string;
   Vendor_No: string;
@@ -191,14 +215,15 @@ const CACHE_TTL = 5 * 60 * 1000;
 export async function getMaterialsWithLiveData(log: (msg: string) => void): Promise<Material[]> {
   if (bcCache && Date.now() - bcCache.fetchedAt < CACHE_TTL) return bcCache.data;
 
-  log("Fetching BC Items + ProdOrderComponents...");
-  const [itemsMap, bcMultiplesMap, purchasePriceMap] = await Promise.all([
+  log("Fetching BC Items + ProdOrderComponents + Substitutes...");
+  const [itemsMap, bcMultiplesMap, purchasePriceMap, substitutesMap] = await Promise.all([
     fetchBcItems(),
     fetchBcOrderMultiples(),
     fetchPurchasePriceMap(),
+    fetchBcSubstitutesMap(),
   ]);
   const prodNeeds = await fetchProdNeeds(itemsMap);
-  log(`BC: ${itemsMap.size} items, ${prodNeeds.size} items with active production needs, ${purchasePriceCount} purchase prices loaded${purchasePriceError ? " | CENIK ERROR: " + purchasePriceError : ""}`);
+  log(`BC: ${itemsMap.size} items, ${prodNeeds.size} with prod needs, ${purchasePriceCount} prices, ${Object.keys(substitutesMap).length} items with substitutes${purchasePriceError ? " | CENIK ERROR: " + purchasePriceError : ""}`);
 
   const materials: Material[] = [];
 
@@ -209,7 +234,6 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
     const uom = bcItem?.Base_Unit_of_Measure ?? "";
     const replenishment = bcItem?.Replenishment_System ?? "";
     const opis = bcItem?.Description ?? itemNo;
-    const has_substitutes = bcItem?.Substitutes_Exist ?? false;
 
     let cena = unitCost;
     let price_source: Material["price_source"] = "unit_cost";
@@ -225,11 +249,23 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
       }
     }
 
-    // NOTE: BC OData page for item substitutes (table 5715) is not correctly published.
-    // Specific substitute item numbers are unavailable via OData.
-    // has_substitutes reflects BC's Substitutes_Exist flag; nadomestki stays empty until BC admin publishes table 5715.
-    const nadomestki: Material["nadomestki"] = [];
-    const totalSubStock = 0;
+    // Build live nadomestki array from BC Item_Substitution endpoint
+    const subNos = substitutesMap[itemNo] ?? [];
+    const nadomestki: Material["nadomestki"] = subNos.map((sNo) => {
+      const sItem = itemsMap.get(sNo);
+      const sUnitCost = sItem?.Unit_Cost ?? 0;
+      const sCena = sUnitCost > 0 ? sUnitCost : (purchasePriceMap.get(sNo) ?? 0);
+      return {
+        st: sNo,
+        opis: sItem?.Description ?? sNo,
+        zaloga: sItem?.InventoryField ?? 0,
+        cena: sCena,
+        uom: sItem?.Base_Unit_of_Measure ?? "",
+      };
+    });
+
+    const totalSubStock = nadomestki.reduce((sum, s) => sum + s.zaloga, 0);
+    const has_substitutes = nadomestki.length > 0 || (bcItem?.Substitutes_Exist ?? false);
     const dejansko = Math.max(0, need.qty - zaloga - totalSubStock);
     const order_multiple = bcMultiplesMap.get(itemNo) ?? 0;
     const order_qty = order_multiple > 0 ? Math.ceil(dejansko / order_multiple) * order_multiple : dejansko;

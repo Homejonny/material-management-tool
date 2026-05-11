@@ -77,17 +77,9 @@ function StatusBadge({ dejansko, kolicina }: { dejansko: number; kolicina: numbe
   );
 }
 
-function SubstitutesDropdown({ nadomestki, has_substitutes }: { nadomestki: Substitute[]; has_substitutes: boolean }) {
+function SubstitutesDropdown({ nadomestki }: { nadomestki: Substitute[]; has_substitutes: boolean }) {
   const [open, setOpen] = useState(false);
   if (nadomestki.length === 0) {
-    if (has_substitutes) {
-      return (
-        <span className="inline-flex items-center gap-1 text-xs text-amber-600" title="Nadomestki obstajajo v BC, a OData stran za tabelo 5715 ni objavljena.">
-          <Package className="w-3 h-3" />
-          Ima nadomestke*
-        </span>
-      );
-    }
     return <span className="text-muted-foreground text-xs">—</span>;
   }
   return (

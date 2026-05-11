@@ -95,6 +95,27 @@ async function fetchBcItemsFull(): Promise<Map<string, BcItem>> {
   return new Map(rows.map((r) => [r.No.trim(), r]));
 }
 
+type BcItemSubstitution = {
+  No: string;
+  Substitute_No: string;
+};
+
+// Returns map: mainItemNo → [substituteItemNo, ...]
+async function fetchBcSubstitutesMap(): Promise<Record<string, string[]>> {
+  const rows = await paginatedFetch<BcItemSubstitution>(
+    `${BASE_URL}/Item_Substitution?$select=No,Substitute_No&$top=2000`
+  );
+  const map: Record<string, string[]> = {};
+  for (const r of rows) {
+    const mainNo = r.Substitute_No?.trim();
+    const subNo = r.No?.trim();
+    if (!mainNo || !subNo) continue;
+    if (!map[mainNo]) map[mainNo] = [];
+    if (!map[mainNo].includes(subNo)) map[mainNo].push(subNo);
+  }
+  return map;
+}
+
 async function fetchVendors(): Promise<Map<string, BcVendor>> {
   const rows = await paginatedFetch<BcVendor>(
     `${BASE_URL}/Dobavitelji?$select=No,Name,Lead_Time_Calculation&$top=500`
@@ -115,12 +136,13 @@ export async function getScheduleLines(log: (m: string) => void): Promise<Schedu
   if (schedCache && Date.now() - schedCache.fetchedAt < CACHE_TTL) return schedCache.data;
 
   log("Fetching schedule data from BC...");
-  const [itemsMap, vendorsMap, prodComps] = await Promise.all([
+  const [itemsMap, vendorsMap, prodComps, substitutesMap] = await Promise.all([
     fetchBcItemsFull(),
     fetchVendors(),
     fetchProdComponents(),
+    fetchBcSubstitutesMap(),
   ]);
-  log(`Loaded ${itemsMap.size} items, ${vendorsMap.size} vendors, ${prodComps.length} prod components`);
+  log(`Loaded ${itemsMap.size} items, ${vendorsMap.size} vendors, ${prodComps.length} prod components, ${Object.keys(substitutesMap).length} items with substitutes`);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -142,8 +164,7 @@ export async function getScheduleLines(log: (m: string) => void): Promise<Schedu
       const ltDays = parseLeadTimeDays(rawLT);
 
       const itemStock = bcItem?.InventoryField ?? 0;
-      // NOTE: BC OData for table 5715 (item substitutes) not published — sub_stock always 0
-      const subStock = 0;
+      const subStock = (substitutesMap[key] ?? []).reduce((sum, sNo) => sum + (itemsMap.get(sNo)?.InventoryField ?? 0), 0);
       const totalAvailable = itemStock + subStock;
 
       let urgencyDays = 9999;
