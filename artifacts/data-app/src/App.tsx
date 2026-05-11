@@ -7,7 +7,9 @@ import SchedulePage from "@/pages/SchedulePage";
 import OrdersPage from "@/pages/OrdersPage";
 import InquiryPage from "@/pages/InquiryPage";
 import QuotesPage from "@/pages/QuotesPage";
-import { Package, CalendarClock, ShoppingCart, FileText, Inbox } from "lucide-react";
+import { Package, CalendarClock, ShoppingCart, FileText, Inbox, LogOut } from "lucide-react";
+import { PinLogin, loadSession, clearSession, type AppUser } from "@/components/PinLogin";
+import { PresenceBar } from "@/components/PresenceBar";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,7 +22,17 @@ const queryClient = new QueryClient({
 
 type Page = "materials" | "schedule" | "orders" | "inquiry" | "quotes";
 
-function Nav({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
+function Nav({
+  page,
+  setPage,
+  user,
+  onLogout,
+}: {
+  page: Page;
+  setPage: (p: Page) => void;
+  user: AppUser;
+  onLogout: () => void;
+}) {
   const tabs: { id: Page; label: string; icon: React.ReactNode }[] = [
     { id: "materials", label: "Pregled nabave", icon: <Package className="w-4 h-4" /> },
     { id: "schedule", label: "Terminski plan", icon: <CalendarClock className="w-4 h-4" /> },
@@ -46,6 +58,23 @@ function Nav({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
               {t.label}
             </button>
           ))}
+
+          <div className="ml-auto flex items-center gap-4">
+            <PresenceBar name={user.name} />
+            <div className="flex items-center gap-2 pl-4 border-l border-border">
+              <span className="text-sm text-foreground font-medium">{user.name}</span>
+              {user.role === "admin" && (
+                <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">admin</span>
+              )}
+              <button
+                onClick={onLogout}
+                title="Odjava"
+                className="ml-1 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </nav>
       </div>
     </div>
@@ -54,11 +83,25 @@ function Nav({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
 
 function App() {
   const [page, setPage] = useState<Page>("materials");
+  const [user, setUser] = useState<AppUser | null>(() => loadSession());
+
+  function handleLogin(u: AppUser) {
+    setUser(u);
+  }
+
+  function handleLogout() {
+    clearSession();
+    setUser(null);
+  }
+
+  if (!user) {
+    return <PinLogin onLogin={handleLogin} />;
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Nav page={page} setPage={setPage} />
+        <Nav page={page} setPage={setPage} user={user} onLogout={handleLogout} />
         {page === "materials" && <MaterialsPage />}
         {page === "schedule" && <SchedulePage />}
         {page === "orders" && <OrdersPage />}
