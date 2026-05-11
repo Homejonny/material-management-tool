@@ -10,7 +10,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, Search, ArrowUpDown, ArrowUp, ArrowDown, Package, AlertTriangle, CheckCircle2, RefreshCw, Radio } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, ArrowUpDown, ArrowUp, ArrowDown, Package, AlertTriangle, CheckCircle2, RefreshCw, Radio, Info } from "lucide-react";
 
 type Substitute = {
   st: string | number;
@@ -25,6 +25,7 @@ type Material = {
   opis: string;
   zaloga: number;
   cena: number;
+  price_source: "unit_cost" | "price_list" | "missing";
   uom: string;
   replenishment: string;
   kolicina: number;
@@ -184,13 +185,27 @@ export default function MaterialsPage() {
     {
       accessorKey: "cena",
       header: "Cena / enoto",
-      size: 100,
+      size: 130,
       cell: info => {
-        const uom = (info.row.original as Material).uom;
+        const m = info.row.original as Material;
+        const uom = m.uom;
+        if (m.price_source === "missing") {
+          return (
+            <span className="inline-flex items-center gap-1 text-amber-600 font-medium text-xs">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              Ni cene
+            </span>
+          );
+        }
         return (
-          <span className="text-muted-foreground">
+          <span className="text-muted-foreground inline-flex items-center gap-1">
             {fmtPrice(info.getValue() as number)}
-            {uom && <span className="ml-1 text-xs opacity-60">/{uom}</span>}
+            {uom && <span className="text-xs opacity-60">/{uom}</span>}
+            {m.price_source === "price_list" && (
+              <span title="Cena iz cenika (tabela 7012)">
+                <Info className="w-3 h-3 text-blue-400 shrink-0" />
+              </span>
+            )}
           </span>
         );
       },
@@ -284,6 +299,7 @@ export default function MaterialsPage() {
   const toOrder = useMemo(() => filteredData.filter(m => m.dejansko > 0).length, [filteredData]);
   const covered = useMemo(() => filteredData.filter(m => m.dejansko === 0).length, [filteredData]);
   const totalOrderValue = useMemo(() => filteredData.reduce((s, m) => s + (m.order_qty ?? m.dejansko) * m.cena, 0), [filteredData]);
+  const missingPrice = useMemo(() => filteredData.filter(m => m.price_source === "missing").length, [filteredData]);
 
   if (isLoading) {
     return (
@@ -346,7 +362,7 @@ export default function MaterialsPage() {
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="rounded-xl border border-border bg-card p-4 space-y-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Skupaj materialov</p>
             <p className="text-2xl font-bold text-foreground">{filteredData.length}</p>
@@ -362,6 +378,10 @@ export default function MaterialsPage() {
           <div className="rounded-xl border border-border bg-card p-4 space-y-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ocenjena vrednost nabave</p>
             <p className="text-2xl font-bold text-foreground">{totalOrderValue.toLocaleString("sl-SI", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</p>
+          </div>
+          <div className={`rounded-xl border p-4 space-y-1 ${missingPrice > 0 ? "border-amber-200 bg-amber-50" : "border-border bg-card"}`}>
+            <p className={`text-xs font-medium uppercase tracking-wide ${missingPrice > 0 ? "text-amber-600" : "text-muted-foreground"}`}>Brez cene</p>
+            <p className={`text-2xl font-bold ${missingPrice > 0 ? "text-amber-700" : "text-foreground"}`}>{missingPrice}</p>
           </div>
         </div>
 

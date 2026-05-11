@@ -42,6 +42,7 @@ export type Material = {
   opis: string;
   zaloga: number;
   cena: number;
+  price_source: "unit_cost" | "price_list" | "missing";
   uom: string;
   replenishment: string;
   kolicina: number;
@@ -106,6 +107,40 @@ async function fetchBcItems(): Promise<Map<string, BcItem>> {
   return new Map(rows.map((r) => [r.No.trim(), r]));
 }
 
+type BcPurchasePrice = {
+  Item_No: string;
+  Vendor_No: string;
+  Direct_Unit_Cost: number;
+  Minimum_Quantity: number;
+  Starting_Date: string;
+  Ending_Date: string;
+};
+
+async function fetchPurchasePriceMap(): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = await paginatedFetch<BcPurchasePrice>(
+      `${BASE_URL}/purchasePrices?$select=Item_No,Vendor_No,Direct_Unit_Cost,Minimum_Quantity,Starting_Date,Ending_Date&$top=2000`
+    );
+    // For each item keep the lowest valid price (valid date range, qty = 0 or lowest)
+    for (const r of rows) {
+      const key = r.Item_No?.trim();
+      if (!key || !r.Direct_Unit_Cost || r.Direct_Unit_Cost <= 0) continue;
+      const startOk = !r.Starting_Date || r.Starting_Date <= today || r.Starting_Date.startsWith("0001");
+      const endOk = !r.Ending_Date || r.Ending_Date >= today || r.Ending_Date.startsWith("0001");
+      if (!startOk || !endOk) continue;
+      const existing = map.get(key);
+      if (existing === undefined || r.Direct_Unit_Cost < existing) {
+        map.set(key, r.Direct_Unit_Cost);
+      }
+    }
+  } catch {
+    // Table not accessible — silently skip, items will be flagged as "missing"
+  }
+  return map;
+}
+
 // Aggregate active production order components by item, applying UoM conversion
 async function fetchProdNeeds(itemsMap: Map<string, BcItem>): Promise<Map<string, { qty: number; earliestDue: string }>> {
   const rows = await paginatedFetch<ProdComp>(
@@ -140,7 +175,11 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
   if (bcCache && Date.now() - bcCache.fetchedAt < CACHE_TTL) return bcCache.data;
 
   log("Fetching BC Items + ProdOrderComponents...");
-  const [itemsMap, bcMultiplesMap] = await Promise.all([fetchBcItems(), fetchBcOrderMultiples()]);
+  const [itemsMap, bcMultiplesMap, purchasePriceMap] = await Promise.all([
+    fetchBcItems(),
+    fetchBcOrderMultiples(),
+    fetchPurchasePriceMap(),
+  ]);
   const prodNeeds = await fetchProdNeeds(itemsMap);
   log(`BC: ${itemsMap.size} items, ${prodNeeds.size} items with active production needs`);
 
@@ -150,10 +189,24 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
   for (const [itemNo, need] of prodNeeds) {
     const bcItem = itemsMap.get(itemNo);
     const zaloga = bcItem?.InventoryField ?? 0;
-    const cena = bcItem?.Unit_Cost ?? 0;
+    const unitCost = bcItem?.Unit_Cost ?? 0;
     const uom = bcItem?.Base_Unit_of_Measure ?? "";
     const replenishment = bcItem?.Replenishment_System ?? "";
     const opis = bcItem?.Description ?? itemNo;
+
+    let cena = unitCost;
+    let price_source: Material["price_source"] = "unit_cost";
+
+    if (!cena || cena <= 0) {
+      const priceListCena = purchasePriceMap.get(itemNo);
+      if (priceListCena && priceListCena > 0) {
+        cena = priceListCena;
+        price_source = "price_list";
+      } else {
+        cena = 0;
+        price_source = "missing";
+      }
+    }
 
     const subNos = substitutesMap[itemNo] ?? [];
     const nadomestki = subNos.map((sNo) => {
@@ -172,7 +225,7 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
     const order_multiple = bcMultiplesMap.get(itemNo) ?? 0;
     const order_qty = order_multiple > 0 ? Math.ceil(dejansko / order_multiple) * order_multiple : dejansko;
 
-    materials.push({ st: itemNo, opis, zaloga, cena, uom, replenishment, kolicina: need.qty, totalSubStock, dejansko, order_multiple, order_qty, nadomestki });
+    materials.push({ st: itemNo, opis, zaloga, cena, price_source, uom, replenishment, kolicina: need.qty, totalSubStock, dejansko, order_multiple, order_qty, nadomestki });
   }
 
   // Default sort: price descending (most expensive first)
