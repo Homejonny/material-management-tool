@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "7Mb2V1oYOghdcMoMEJsps"
+uri = "file://nabave-material.tar.gz"
+type = "unspecified"
+title = "nabave-material.tar.gz — zgrajene datoteke za /material/"
