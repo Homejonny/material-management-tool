@@ -56,3 +56,7 @@ externalPort = 3000
 [userenv.shared]
 BC_URL = "https://gmppharma.b-s.si:7058/prodgmppharma/ODataV4/Company('SLO%20OSNOVNO%20PODJETJE')"
 BC_USERNAME = "Marko.Rogelj"
+SMTP_HOST = "mail.gmp-pharma.eu"
+SMTP_PORT = "587"
+SMTP_USER = "janez@gmp-pharma.eu"
+SMTP_FROM = "janez@gmp-pharma.eu"
