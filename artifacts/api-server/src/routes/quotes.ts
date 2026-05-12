@@ -88,8 +88,9 @@ router.post("/quotes/parse", upload.single("file"), async (req, res) => {
     const lines = await parseQuoteText(text, sourceHint);
     res.json({ lines, source: sourceHint, rawText: text.slice(0, 5000) });
   } catch (err) {
-    req.log.error({ err }, "Failed to parse quote");
-    res.status(500).json({ error: "Napaka pri razčlenjevanju ponudbe" });
+    const msg = err instanceof Error ? err.message : String(err);
+    req.log.error({ err, msg }, "Failed to parse quote");
+    res.status(500).json({ error: "Napaka pri razčlenjevanju ponudbe", detail: msg });
   }
 });
 

@@ -97,7 +97,7 @@ export default function QuotesPage() {
         body: JSON.stringify({ text }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.detail ?? data.error);
       setParseResult({ ...data, source });
       setEditedLines(data.lines);
     } catch (e) {
@@ -117,7 +117,7 @@ export default function QuotesPage() {
       form.append("file", file);
       const res = await fetch("/api/quotes/parse", { method: "POST", body: form });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.detail ?? data.error);
       setParseResult({ ...data, source: file.name });
       setEditedLines(data.lines);
     } catch (e) {
