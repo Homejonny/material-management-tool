@@ -103,6 +103,28 @@ type BcItemSubstitution = {
   Interchangeable: boolean;
 };
 
+// Returns map: itemNo → total quantity on open (future) purchase orders
+type BcPurchaseQtyLine = {
+  number: string;
+  quantity: number;
+  expectedReceiptDate: string;
+};
+
+async function fetchPurchaseOrderedQtyMap(): Promise<Map<string, number>> {
+  const today = new Date().toISOString().slice(0, 10);
+  const lines = await paginatedFetch<BcPurchaseQtyLine>(
+    `${BASE_URL}/purchaseDocumentLines?$select=number,quantity,expectedReceiptDate&$top=2000`
+  );
+  const map = new Map<string, number>();
+  for (const line of lines) {
+    const key = line.number?.trim();
+    if (!key || !line.quantity || line.quantity <= 0) continue;
+    if (!line.expectedReceiptDate || line.expectedReceiptDate < today) continue;
+    map.set(key, (map.get(key) ?? 0) + line.quantity);
+  }
+  return map;
+}
+
 // Returns map: mainItemNo → [substituteItemNo, ...]
 async function fetchBcSubstitutesMap(): Promise<Record<string, string[]>> {
   const rows = await paginatedFetch<BcItemSubstitution>(
@@ -215,15 +237,16 @@ const CACHE_TTL = 5 * 60 * 1000;
 export async function getMaterialsWithLiveData(log: (msg: string) => void): Promise<Material[]> {
   if (bcCache && Date.now() - bcCache.fetchedAt < CACHE_TTL) return bcCache.data;
 
-  log("Fetching BC Items + ProdOrderComponents + Substitutes...");
-  const [itemsMap, bcMultiplesMap, purchasePriceMap, substitutesMap] = await Promise.all([
+  log("Fetching BC Items + ProdOrderComponents + Substitutes + Purchase Orders...");
+  const [itemsMap, bcMultiplesMap, purchasePriceMap, substitutesMap, purchaseOrderedMap] = await Promise.all([
     fetchBcItems(),
     fetchBcOrderMultiples(),
     fetchPurchasePriceMap(),
     fetchBcSubstitutesMap(),
+    fetchPurchaseOrderedQtyMap(),
   ]);
   const prodNeeds = await fetchProdNeeds(itemsMap);
-  log(`BC: ${itemsMap.size} items, ${prodNeeds.size} with prod needs, ${purchasePriceCount} prices, ${Object.keys(substitutesMap).length} items with substitutes${purchasePriceError ? " | CENIK ERROR: " + purchasePriceError : ""}`);
+  log(`BC: ${itemsMap.size} items, ${prodNeeds.size} with prod needs, ${purchasePriceCount} prices, ${Object.keys(substitutesMap).length} items with substitutes, ${purchaseOrderedMap.size} items on order${purchasePriceError ? " | CENIK ERROR: " + purchasePriceError : ""}`);
 
   const materials: Material[] = [];
 
@@ -264,9 +287,12 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
       };
     });
 
-    const totalSubStock = nadomestki.reduce((sum, s) => sum + s.zaloga, 0);
+    // Count substitute stock + substitute on-order quantities
+    const totalSubStock = nadomestki.reduce((sum, s) => sum + s.zaloga + (purchaseOrderedMap.get(s.st) ?? 0), 0);
     const has_substitutes = nadomestki.length > 0 || (bcItem?.Substitutes_Exist ?? false);
-    const dejansko = Math.max(0, need.qty - zaloga - totalSubStock);
+    // Subtract own stock + own on-order qty + substitute (stock + on-order)
+    const ownOrdered = purchaseOrderedMap.get(itemNo) ?? 0;
+    const dejansko = Math.max(0, need.qty - zaloga - ownOrdered - totalSubStock);
     const order_multiple = bcMultiplesMap.get(itemNo) ?? 0;
     const order_qty = order_multiple > 0 ? Math.ceil(dejansko / order_multiple) * order_multiple : dejansko;
 
