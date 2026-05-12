@@ -281,8 +281,6 @@ async function getOrderSuggestions(log: (m: string) => void): Promise<OrderSugge
 
   const suggestions: OrderSuggestion[] = materials
     .filter((m) => m.dejansko > 0)
-    // Skip items that appear on any open purchase order line (regardless of vendor or receipt date)
-    .filter((m) => !orderedItems.has(m.st.trim()))
     .map((m) => {
       const key = m.st.trim();
       const bcItem = itemVendorMap.get(key);

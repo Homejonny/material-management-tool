@@ -111,16 +111,17 @@ type BcPurchaseQtyLine = {
 };
 
 async function fetchPurchaseOrderedQtyMap(): Promise<Map<string, number>> {
-  const today = new Date().toISOString().slice(0, 10);
-  const lines = await paginatedFetch<BcPurchaseQtyLine>(
-    `${BASE_URL}/purchaseDocumentLines?$select=number,quantity,expectedReceiptDate&$top=2000`
+  // outstandingQuantity = ordered but not yet received
+  const lines = await paginatedFetch<Record<string, unknown>>(
+    `${BASE_URL}/purchaseDocumentLines?$select=number,outstandingQuantity&$top=2000`
   );
   const map = new Map<string, number>();
   for (const line of lines) {
-    const key = line.number?.trim();
-    if (!key || !line.quantity || line.quantity <= 0) continue;
-    if (!line.expectedReceiptDate || line.expectedReceiptDate < today) continue;
-    map.set(key, (map.get(key) ?? 0) + line.quantity);
+    const key = (line["number"] as string | undefined)?.trim();
+    if (!key) continue;
+    const qty = (line["outstandingQuantity"] as number | undefined) ?? 0;
+    if (qty <= 0) continue;
+    map.set(key, (map.get(key) ?? 0) + qty);
   }
   return map;
 }
@@ -307,6 +308,18 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
 }
 
 export function invalidateMaterialsCache() { bcCache = null; }
+
+// Diagnostic endpoint — returns raw purchase document line fields to identify quantity field name
+router.get("/materials/purchase-lines-debug", async (req, res) => {
+  try {
+    const rows = await paginatedFetch<Record<string, unknown>>(
+      `${BASE_URL}/purchaseDocumentLines?$top=3`
+    );
+    res.json({ count: rows.length, sample: rows.slice(0, 3), keys: rows[0] ? Object.keys(rows[0]) : [] });
+  } catch (e: unknown) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
 
 // Diagnostic endpoint — returns raw purchase price rows from BC
 router.get("/materials/purchase-prices-debug", async (req, res) => {
