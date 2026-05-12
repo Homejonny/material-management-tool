@@ -192,28 +192,33 @@ async function fetchVendors(): Promise<Map<string, BcVendor>> {
   return new Map(rows.map((v) => [v.No.trim(), v]));
 }
 
-async function fetchRecentPurchaseVendors(): Promise<Map<string, PurchaseLine>> {
+async function fetchRecentPurchaseVendors(): Promise<{ vendorMap: Map<string, PurchaseLine>; orderedItems: Set<string> }> {
   const lines = await paginatedFetch<PurchaseLine>(
     `${BASE_URL}/purchaseDocumentLines?$select=documentNumber,buyFromVendorNumber,number,vendorItemNumber,expectedReceiptDate&$top=2000`
   );
-  const map = new Map<string, PurchaseLine>();
+  const vendorMap = new Map<string, PurchaseLine>();
+  const orderedItems = new Set<string>();
   const today = new Date().toISOString().slice(0, 10);
   for (const line of lines) {
     const key = line.number?.trim();
-    if (!key || !line.buyFromVendorNumber) continue;
-    const existing = map.get(key);
+    if (!key) continue;
+    // Track every item that appears on any open purchase line
+    orderedItems.add(key);
+    // For vendor/date info, only consider lines with a vendor assigned
+    if (!line.buyFromVendorNumber) continue;
+    const existing = vendorMap.get(key);
     // Prefer future receipt dates; otherwise take latest
     const isFuture = line.expectedReceiptDate >= today;
     const existingIsFuture = existing ? existing.expectedReceiptDate >= today : false;
     if (!existing) {
-      map.set(key, line);
+      vendorMap.set(key, line);
     } else if (isFuture && !existingIsFuture) {
-      map.set(key, line);
+      vendorMap.set(key, line);
     } else if (isFuture && existingIsFuture && line.expectedReceiptDate > existing.expectedReceiptDate) {
-      map.set(key, line);
+      vendorMap.set(key, line);
     }
   }
-  return map;
+  return { vendorMap, orderedItems };
 }
 
 // Fetch earliest ProdOrderComponents Due_Date per item (terminski plan "Rok")
@@ -256,7 +261,7 @@ async function getOrderSuggestions(log: (m: string) => void): Promise<OrderSugge
   if (ordersCache && Date.now() - ordersCache.fetchedAt < CACHE_TTL) return ordersCache.data;
 
   log("Fetching BC vendor, purchase, planning dates and order multiples...");
-  const [materials, itemVendorMap, vendorsMap, purchaseMap, planningDates, bcMultiplesMap, prodNeedDates] = await Promise.all([
+  const [materials, itemVendorMap, vendorsMap, purchaseResult, planningDates, bcMultiplesMap, prodNeedDates] = await Promise.all([
     getMaterialsWithLiveData(log),
     fetchItemVendorPlanning(),
     fetchVendors(),
@@ -265,7 +270,8 @@ async function getOrderSuggestions(log: (m: string) => void): Promise<OrderSugge
     fetchBcOrderMultiples(),
     fetchProdNeedDates(),
   ]);
-  log(`Loaded ${itemVendorMap.size} items, ${vendorsMap.size} vendors, ${purchaseMap.size} purchase lines, ${bcMultiplesMap.size} BC order multiples`);
+  const { vendorMap: purchaseMap, orderedItems } = purchaseResult;
+  log(`Loaded ${itemVendorMap.size} items, ${vendorsMap.size} vendors, ${orderedItems.size} ordered items (${purchaseMap.size} with vendor), ${bcMultiplesMap.size} BC order multiples`);
 
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
@@ -275,11 +281,8 @@ async function getOrderSuggestions(log: (m: string) => void): Promise<OrderSugge
 
   const suggestions: OrderSuggestion[] = materials
     .filter((m) => m.dejansko > 0)
-    // Skip items that already have an open purchase order with a future receipt date
-    .filter((m) => {
-      const line = purchaseMap.get(m.st.trim());
-      return !line || line.expectedReceiptDate < todayStr;
-    })
+    // Skip items that appear on any open purchase order line (regardless of vendor or receipt date)
+    .filter((m) => !orderedItems.has(m.st.trim()))
     .map((m) => {
       const key = m.st.trim();
       const bcItem = itemVendorMap.get(key);
