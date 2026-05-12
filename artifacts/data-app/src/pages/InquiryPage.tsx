@@ -400,13 +400,21 @@ export default function InquiryPage() {
     <>
       <style>{`
         @media print {
-          body * { visibility: hidden !important; }
-          .print-area, .print-area * { visibility: visible !important; }
+          /* Collapse the entire app so it takes up zero height — prevents extra blank pages */
+          body > * {
+            height: 0 !important;
+            overflow: hidden !important;
+            visibility: hidden !important;
+          }
+          /* Print area escapes via position: fixed (not clipped by parent overflow) */
           .print-area {
-            position: absolute !important;
+            position: fixed !important;
             top: 0 !important;
             left: 0 !important;
             right: 0 !important;
+            height: auto !important;
+            overflow: visible !important;
+            visibility: visible !important;
             padding: 15mm 20mm !important;
             margin: 0 !important;
             max-width: 100% !important;
@@ -415,7 +423,8 @@ export default function InquiryPage() {
             border-radius: 0 !important;
             background: white !important;
           }
-          .no-print, .no-print * { visibility: hidden !important; display: none !important; }
+          .print-area * { visibility: visible !important; }
+          .no-print { display: none !important; }
           tr.no-print { display: none !important; }
           input[type="number"] {
             border: none !important;
@@ -426,10 +435,9 @@ export default function InquiryPage() {
           }
           input[type="number"]::-webkit-outer-spin-button,
           input[type="number"]::-webkit-inner-spin-button { display: none !important; }
-          input[type="date"] { display: none !important; visibility: hidden !important; }
-          .print\\:inline { display: inline !important; visibility: visible !important; }
-          .print\\:hidden { display: none !important; visibility: hidden !important; }
-          .hidden { display: none; }
+          input[type="date"] { display: none !important; }
+          .print\\:inline { display: inline !important; }
+          .print\\:hidden { display: none !important; }
         }
       `}</style>
 
