@@ -400,33 +400,36 @@ export default function InquiryPage() {
     <>
       <style>{`
         @media print {
-          body > * { display: none !important; }
+          body * { visibility: hidden !important; }
+          .print-area, .print-area * { visibility: visible !important; }
           .print-area {
-            display: block !important;
-            position: fixed;
-            inset: 0;
-            padding: 24mm 20mm;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            padding: 15mm 20mm !important;
+            margin: 0 !important;
             max-width: 100% !important;
             border: none !important;
             box-shadow: none !important;
             border-radius: 0 !important;
-            overflow: visible !important;
+            background: white !important;
           }
-          .no-print { display: none !important; }
+          .no-print, .no-print * { visibility: hidden !important; display: none !important; }
           tr.no-print { display: none !important; }
-          input[type="number"], input[type="date"] {
+          input[type="number"] {
             border: none !important;
             background: transparent !important;
             padding: 0 !important;
-            appearance: none;
+            -webkit-appearance: none;
             -moz-appearance: textfield;
           }
           input[type="number"]::-webkit-outer-spin-button,
-          input[type="number"]::-webkit-inner-spin-button { display: none; }
-          input[type="date"]::-webkit-calendar-picker-indicator { display: none; }
-          input[type="date"] { display: none; }
-          .print\\:inline { display: inline !important; }
-          .print\\:hidden { display: none !important; }
+          input[type="number"]::-webkit-inner-spin-button { display: none !important; }
+          input[type="date"] { display: none !important; visibility: hidden !important; }
+          .print\\:inline { display: inline !important; visibility: visible !important; }
+          .print\\:hidden { display: none !important; visibility: hidden !important; }
+          .hidden { display: none; }
         }
       `}</style>
 
