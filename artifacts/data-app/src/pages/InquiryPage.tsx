@@ -36,8 +36,8 @@ const SENDER = {
   address: "Obrtna cona Logatec 10",
   city: "1370 Logatec",
   country: "Slovenija",
-  phone: "+386 4 506 20 00",
-  email: "nabava@gmp-pharma.si",
+  email1: "info@gmp-pharma.eu",
+  email2: "janez@gmp-pharma.eu",
 };
 
 function fmtDate(iso: string) {
@@ -126,7 +126,7 @@ function InquiryLetter({
           <div className="text-lg font-bold text-gray-900">{SENDER.name}</div>
           <div className="text-gray-500 text-xs mt-1">{SENDER.address}, {SENDER.city}</div>
           <div className="text-gray-500 text-xs">{SENDER.country}</div>
-          <div className="text-gray-500 text-xs mt-1">{SENDER.phone} · {SENDER.email}</div>
+          <div className="text-gray-500 text-xs mt-1">{SENDER.email1} · {SENDER.email2}</div>
         </div>
         <div className="text-right text-xs text-gray-500">
           <div className="font-semibold text-gray-700 mb-1">{t.dateLabel}</div>
@@ -359,7 +359,7 @@ export default function InquiryPage() {
             const dateFmt = date && date > "0001-01-01" ? fmtDate(date) : "—";
             return `- ${i.st} | ${i.opis} | ${qty.toLocaleString(numFmt, { maximumFractionDigits: 2 })} ${i.uom} | Req. Date: ${dateFmt}`;
           }).join("\n") +
-          `\n\nPlease send us your quotation at your earliest convenience.\n\nKind regards,\n${SENDER.name}\nProcurement Department\n${SENDER.phone}\n${SENDER.email}`
+          `\n\nPlease send us your quotation at your earliest convenience.\n\nKind regards,\n${SENDER.name}\nProcurement Department\n${SENDER.email1}`
         : `Spoštovani${selectedVendor.vendor_contact ? ` ${selectedVendor.vendor_contact}` : ""},\n\n` +
           `v skladu z našimi trenutnimi potrebami za proizvodnjo vas prosimo za potrditev razpoložljivosti in cen za naslednje materiale:\n\n` +
           selectedItems.map(i => {
@@ -369,7 +369,7 @@ export default function InquiryPage() {
             const dateFmt = date && date > "0001-01-01" ? fmtDate(date) : "—";
             return `- ${i.st} | ${i.opis} | ${qty.toLocaleString(numFmt, { maximumFractionDigits: 2 })} ${i.uom} | Žel. datum: ${dateFmt}`;
           }).join("\n") +
-          `\n\nHvala za vaše hitro odzivanje.\n\nLep pozdrav,\n${SENDER.name}\nSektor nabave\n${SENDER.phone}\n${SENDER.email}`
+          `\n\nHvala za vaše hitro odzivanje.\n\nLep pozdrav,\n${SENDER.name}\nSektor nabave\n${SENDER.email1}`
     );
     window.open(`mailto:${to}?subject=${subject}&body=${body}`);
   }
