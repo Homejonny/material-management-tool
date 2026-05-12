@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Search, Printer, Mail, Building2, ChevronRight, RefreshCw, FileText, User, Phone } from "lucide-react";
+import { Search, Printer, Mail, Building2, ChevronRight, RefreshCw, FileText, User, Phone, CheckSquare, Square } from "lucide-react";
 
 type InquiryItem = {
   st: string;
@@ -23,6 +23,12 @@ type VendorGroup = {
   vendor_contact: string;
   item_count: number;
   items: InquiryItem[];
+};
+
+type ItemEdit = {
+  qty: number;
+  date: string;
+  selected: boolean;
 };
 
 const SENDER = {
@@ -87,14 +93,31 @@ const T = {
 function InquiryLetter({
   vendor,
   vendorEmail,
+  itemEdits,
+  onToggle,
+  onQtyChange,
+  onDateChange,
 }: {
   vendor: VendorGroup;
   vendorEmail: string;
+  itemEdits: Record<string, ItemEdit>;
+  onToggle: (st: string) => void;
+  onQtyChange: (st: string, val: number) => void;
+  onDateChange: (st: string, val: string) => void;
 }) {
   const eng = isEnglish(vendor.vendor_country);
   const t = eng ? T.en : T.sl;
   const addressLine = [vendor.vendor_post_code, vendor.vendor_city].filter(Boolean).join(" ");
   const numFmt = eng ? "en-GB" : "sl-SI";
+
+  const sortedItems = [...vendor.items].sort((a, b) => {
+    const dateA = itemEdits[a.st]?.date || a.receipt_date || "";
+    const dateB = itemEdits[b.st]?.date || b.receipt_date || "";
+    if (dateA !== dateB) return dateA.localeCompare(dateB);
+    return a.st.localeCompare(b.st);
+  });
+
+  const selectedCount = sortedItems.filter(i => itemEdits[i.st]?.selected !== false).length;
 
   return (
     <div className="print-area bg-white rounded-lg border border-border shadow-sm p-10 max-w-3xl mx-auto font-sans text-sm text-gray-800">
@@ -133,9 +156,30 @@ function InquiryLetter({
       <p className="text-gray-700 mb-2">{t.greeting}</p>
       <p className="text-gray-700 mb-6">{t.body}</p>
 
+      {/* Selection summary bar — hidden during print */}
+      <div className="no-print mb-3 flex items-center justify-between text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded px-3 py-1.5">
+        <span>{selectedCount} / {sortedItems.length} vrstic izbranih za pošiljanje</span>
+        <div className="flex gap-3">
+          <button
+            onClick={() => sortedItems.forEach(i => { if (itemEdits[i.st]?.selected === false) onToggle(i.st); })}
+            className="text-primary hover:underline"
+          >
+            Izberi vse
+          </button>
+          <button
+            onClick={() => sortedItems.forEach(i => { if (itemEdits[i.st]?.selected !== false) onToggle(i.st); })}
+            className="text-gray-500 hover:underline"
+          >
+            Počisti vse
+          </button>
+        </div>
+      </div>
+
       <table className="w-full border-collapse mb-6 text-xs">
         <thead>
           <tr className="bg-gray-100">
+            {/* Checkbox column — hidden during print */}
+            <th className="no-print border border-gray-300 px-2 py-2 w-8" />
             <th className="border border-gray-300 px-3 py-2 text-left font-semibold w-20">{t.colCode}</th>
             <th className="border border-gray-300 px-3 py-2 text-left font-semibold">{t.colDesc}</th>
             <th className="border border-gray-300 px-3 py-2 text-right font-semibold w-28">{t.colQty}</th>
@@ -145,22 +189,65 @@ function InquiryLetter({
           </tr>
         </thead>
         <tbody>
-          {[...vendor.items].sort((a, b) => {
-            const dateCmp = (a.receipt_date || "").localeCompare(b.receipt_date || "");
-            if (dateCmp !== 0) return dateCmp;
-            return a.st.localeCompare(b.st);
-          }).map((item, i) => (
-            <tr key={item.st} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-              <td className="border border-gray-300 px-3 py-1.5 font-mono">{item.st}</td>
-              <td className="border border-gray-300 px-3 py-1.5">{item.opis}</td>
-              <td className="border border-gray-300 px-3 py-1.5 text-right font-medium">
-                {item.order_qty.toLocaleString(numFmt, { maximumFractionDigits: 2 })}
-              </td>
-              <td className="border border-gray-300 px-3 py-1.5 text-center">{item.uom || "—"}</td>
-              <td className="border border-gray-300 px-3 py-1.5 text-gray-500">{item.vendor_item_no || "—"}</td>
-              <td className="border border-gray-300 px-3 py-1.5 text-center">{fmtDate(item.receipt_date)}</td>
-            </tr>
-          ))}
+          {sortedItems.map((item, i) => {
+            const edit = itemEdits[item.st];
+            const selected = edit?.selected !== false;
+            const qty = edit?.qty ?? item.order_qty;
+            const date = edit?.date ?? item.receipt_date;
+            const rowClass = selected
+              ? (i % 2 === 0 ? "bg-white" : "bg-gray-50")
+              : "bg-gray-100 opacity-40 no-print";
+
+            return (
+              <tr key={item.st} className={rowClass}>
+                {/* Checkbox — hidden during print */}
+                <td className="no-print border border-gray-300 px-2 py-1.5 text-center">
+                  <button
+                    onClick={() => onToggle(item.st)}
+                    className="text-primary hover:text-primary/80 transition-colors"
+                    title={selected ? "Izključi iz pisma" : "Vključi v pismo"}
+                  >
+                    {selected
+                      ? <CheckSquare className="w-4 h-4" />
+                      : <Square className="w-4 h-4 text-gray-400" />
+                    }
+                  </button>
+                </td>
+                <td className="border border-gray-300 px-3 py-1.5 font-mono">{item.st}</td>
+                <td className="border border-gray-300 px-3 py-1.5">{item.opis}</td>
+
+                {/* Editable qty */}
+                <td className="border border-gray-300 px-1.5 py-1 text-right">
+                  <input
+                    type="number"
+                    value={qty}
+                    min={0}
+                    step="any"
+                    onChange={e => onQtyChange(item.st, parseFloat(e.target.value) || 0)}
+                    className="w-full text-right font-medium bg-transparent border-0 border-b border-blue-300 focus:border-blue-500 focus:outline-none px-1 py-0 print:border-0"
+                    style={{ minWidth: 0 }}
+                  />
+                </td>
+
+                <td className="border border-gray-300 px-3 py-1.5 text-center">{item.uom || "—"}</td>
+                <td className="border border-gray-300 px-3 py-1.5 text-gray-500">{item.vendor_item_no || "—"}</td>
+
+                {/* Editable date */}
+                <td className="border border-gray-300 px-1.5 py-1 text-center">
+                  <input
+                    type="date"
+                    value={date && date !== "—" && date > "0001-01-01" ? date.substring(0, 10) : ""}
+                    onChange={e => onDateChange(item.st, e.target.value)}
+                    className="w-full text-center bg-transparent border-0 border-b border-blue-300 focus:border-blue-500 focus:outline-none px-1 py-0 print:border-0 print:hidden"
+                  />
+                  {/* Print-only date display */}
+                  <span className="hidden print:inline">
+                    {date && date !== "—" && date > "0001-01-01" ? fmtDate(date) : "—"}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
 
@@ -182,6 +269,7 @@ export default function InquiryPage() {
   const [selectedVendorNo, setSelectedVendorNo] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [vendorEmails, setVendorEmails] = useState<Record<string, string>>({});
+  const [itemEdits, setItemEdits] = useState<Record<string, ItemEdit>>({});
 
   const fetchData = () => {
     setLoading(true);
@@ -197,6 +285,33 @@ export default function InquiryPage() {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  // Re-initialize edits when selected vendor changes
+  useEffect(() => {
+    if (!vendors || !selectedVendorNo) return;
+    const vendor = vendors.find(v => (v.vendor_no || "NONE") === selectedVendorNo);
+    if (!vendor) return;
+    const init: Record<string, ItemEdit> = {};
+    for (const item of vendor.items) {
+      init[item.st] = { qty: item.order_qty, date: item.receipt_date, selected: true };
+    }
+    setItemEdits(init);
+  }, [selectedVendorNo, vendors]);
+
+  const handleToggle = (st: string) => {
+    setItemEdits(prev => ({
+      ...prev,
+      [st]: { ...prev[st], selected: !(prev[st]?.selected !== false) },
+    }));
+  };
+
+  const handleQtyChange = (st: string, val: number) => {
+    setItemEdits(prev => ({ ...prev, [st]: { ...prev[st], qty: val } }));
+  };
+
+  const handleDateChange = (st: string, val: string) => {
+    setItemEdits(prev => ({ ...prev, [st]: { ...prev[st], date: val } }));
+  };
 
   const filtered = useMemo(() => {
     if (!vendors) return [];
@@ -230,19 +345,30 @@ export default function InquiryPage() {
         ? "Request for Quotation — Raw Materials"
         : "Povpraševanje za dobavo materialov"
     );
+
+    const selectedItems = selectedVendor.items.filter(i => itemEdits[i.st]?.selected !== false);
+
     const body = encodeURIComponent(
       eng
         ? `Dear${selectedVendor.vendor_contact ? ` ${selectedVendor.vendor_contact}` : " Sir/Madam"},\n\n` +
           `In accordance with our current production requirements, we kindly request your confirmation of availability and pricing for the following materials:\n\n` +
-          selectedVendor.items.map(i =>
-            `- ${i.st} | ${i.opis} | ${i.order_qty.toLocaleString(numFmt, { maximumFractionDigits: 2 })} ${i.uom}`
-          ).join("\n") +
+          selectedItems.map(i => {
+            const edit = itemEdits[i.st];
+            const qty = edit?.qty ?? i.order_qty;
+            const date = edit?.date ?? i.receipt_date;
+            const dateFmt = date && date > "0001-01-01" ? fmtDate(date) : "—";
+            return `- ${i.st} | ${i.opis} | ${qty.toLocaleString(numFmt, { maximumFractionDigits: 2 })} ${i.uom} | Req. Date: ${dateFmt}`;
+          }).join("\n") +
           `\n\nPlease send us your quotation at your earliest convenience.\n\nKind regards,\n${SENDER.name}\nProcurement Department\n${SENDER.phone}\n${SENDER.email}`
         : `Spoštovani${selectedVendor.vendor_contact ? ` ${selectedVendor.vendor_contact}` : ""},\n\n` +
           `v skladu z našimi trenutnimi potrebami za proizvodnjo vas prosimo za potrditev razpoložljivosti in cen za naslednje materiale:\n\n` +
-          selectedVendor.items.map(i =>
-            `- ${i.st} | ${i.opis} | ${i.order_qty.toLocaleString(numFmt, { maximumFractionDigits: 2 })} ${i.uom}`
-          ).join("\n") +
+          selectedItems.map(i => {
+            const edit = itemEdits[i.st];
+            const qty = edit?.qty ?? i.order_qty;
+            const date = edit?.date ?? i.receipt_date;
+            const dateFmt = date && date > "0001-01-01" ? fmtDate(date) : "—";
+            return `- ${i.st} | ${i.opis} | ${qty.toLocaleString(numFmt, { maximumFractionDigits: 2 })} ${i.uom} | Žel. datum: ${dateFmt}`;
+          }).join("\n") +
           `\n\nHvala za vaše hitro odzivanje.\n\nLep pozdrav,\n${SENDER.name}\nSektor nabave\n${SENDER.phone}\n${SENDER.email}`
     );
     window.open(`mailto:${to}?subject=${subject}&body=${body}`);
@@ -275,7 +401,32 @@ export default function InquiryPage() {
       <style>{`
         @media print {
           body > * { display: none !important; }
-          .print-area { display: block !important; position: fixed; inset: 0; padding: 24mm 20mm; max-width: 100% !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; overflow: visible !important; }
+          .print-area {
+            display: block !important;
+            position: fixed;
+            inset: 0;
+            padding: 24mm 20mm;
+            max-width: 100% !important;
+            border: none !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            overflow: visible !important;
+          }
+          .no-print { display: none !important; }
+          tr.no-print { display: none !important; }
+          input[type="number"], input[type="date"] {
+            border: none !important;
+            background: transparent !important;
+            padding: 0 !important;
+            appearance: none;
+            -moz-appearance: textfield;
+          }
+          input[type="number"]::-webkit-outer-spin-button,
+          input[type="number"]::-webkit-inner-spin-button { display: none; }
+          input[type="date"]::-webkit-calendar-picker-indicator { display: none; }
+          input[type="date"] { display: none; }
+          .print\\:inline { display: inline !important; }
+          .print\\:hidden { display: none !important; }
         }
       `}</style>
 
@@ -284,7 +435,7 @@ export default function InquiryPage() {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Povpraševanje dobaviteljem</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Izberite dobavitelja, vnesite e-poštni naslov in natisnite ali pošljite povpraševanje
+              Izberite dobavitelja, vrstice, uredite količine in datume, nato pošljite ali natisnite
             </p>
           </div>
           <button
@@ -381,7 +532,7 @@ export default function InquiryPage() {
                           </span>
                         )}
                         <span className="flex items-center gap-1">
-                          {selectedVendor.item_count} materialov
+                          {Object.values(itemEdits).filter(e => e.selected !== false).length} / {selectedVendor.item_count} materialov izbranih
                         </span>
                       </div>
                     </div>
@@ -417,7 +568,14 @@ export default function InquiryPage() {
                   </div>
                 </div>
 
-                <InquiryLetter vendor={selectedVendor} vendorEmail={currentEmail} />
+                <InquiryLetter
+                  vendor={selectedVendor}
+                  vendorEmail={currentEmail}
+                  itemEdits={itemEdits}
+                  onToggle={handleToggle}
+                  onQtyChange={handleQtyChange}
+                  onDateChange={handleDateChange}
+                />
               </>
             ) : (
               <div className="flex items-center justify-center h-64 text-muted-foreground">
