@@ -6,6 +6,7 @@ import presenceRouter from "./presence";
 import quotesRouter from "./quotes";
 import scheduleRouter from "./schedule";
 import downloadRouter from "./download";
+import emailRouter from "./email";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(presenceRouter);
 router.use(quotesRouter);
 router.use(scheduleRouter);
 router.use(downloadRouter);
+router.use(emailRouter);
 
 export default router;

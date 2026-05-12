@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Search, Printer, Mail, Building2, ChevronRight, RefreshCw, FileText, User, Phone, CheckSquare, Square } from "lucide-react";
+import { Search, Printer, Mail, Building2, ChevronRight, RefreshCw, FileText, User, Phone, CheckSquare, Square, Send, CheckCircle2, AlertCircle } from "lucide-react";
 
 type InquiryItem = {
   st: string;
@@ -270,6 +270,9 @@ export default function InquiryPage() {
   const [search, setSearch] = useState("");
   const [vendorEmails, setVendorEmails] = useState<Record<string, string>>({});
   const [itemEdits, setItemEdits] = useState<Record<string, ItemEdit>>({});
+  const [sending, setSending] = useState(false);
+  const [sendStatus, setSendStatus] = useState<"idle" | "ok" | "error">("idle");
+  const [sendError, setSendError] = useState<string | null>(null);;
 
   const fetchData = () => {
     setLoading(true);
@@ -331,47 +334,63 @@ export default function InquiryPage() {
 
   const currentEmail = selectedVendorNo ? (vendorEmails[selectedVendorNo] ?? "") : "";
 
+  // Reset send status when vendor or email changes
+  useEffect(() => { setSendStatus("idle"); setSendError(null); }, [selectedVendorNo, currentEmail]);
+
   function handlePrint() {
     window.print();
   }
 
-  function handleSendEmail() {
-    if (!selectedVendor) return;
-    const to = currentEmail;
+  async function handleSendEmail() {
+    if (!selectedVendor || !currentEmail) return;
     const eng = isEnglish(selectedVendor.vendor_country);
-    const numFmt = eng ? "en-GB" : "sl-SI";
-    const subject = encodeURIComponent(
-      eng
-        ? "Request for Quotation — Raw Materials"
-        : "Povpraševanje za dobavo materialov"
-    );
 
-    const selectedItems = selectedVendor.items.filter(i => itemEdits[i.st]?.selected !== false);
+    const selectedItems = selectedVendor.items
+      .filter(i => itemEdits[i.st]?.selected !== false)
+      .map(i => ({
+        st: i.st,
+        opis: i.opis,
+        uom: i.uom,
+        qty: itemEdits[i.st]?.qty ?? i.order_qty,
+        date: itemEdits[i.st]?.date ?? i.receipt_date,
+        vendor_item_no: i.vendor_item_no,
+      }));
 
-    const body = encodeURIComponent(
-      eng
-        ? `Dear${selectedVendor.vendor_contact ? ` ${selectedVendor.vendor_contact}` : " Sir/Madam"},\n\n` +
-          `In accordance with our current production requirements, we kindly request your confirmation of availability and pricing for the following materials:\n\n` +
-          selectedItems.map(i => {
-            const edit = itemEdits[i.st];
-            const qty = edit?.qty ?? i.order_qty;
-            const date = edit?.date ?? i.receipt_date;
-            const dateFmt = date && date > "0001-01-01" ? fmtDate(date) : "—";
-            return `- ${i.st} | ${i.opis} | ${qty.toLocaleString(numFmt, { maximumFractionDigits: 2 })} ${i.uom} | Req. Date: ${dateFmt}`;
-          }).join("\n") +
-          `\n\nPlease send us your quotation at your earliest convenience.\n\nKind regards,\n${SENDER.name}\nProcurement Department\n${SENDER.email1}`
-        : `Spoštovani${selectedVendor.vendor_contact ? ` ${selectedVendor.vendor_contact}` : ""},\n\n` +
-          `v skladu z našimi trenutnimi potrebami za proizvodnjo vas prosimo za potrditev razpoložljivosti in cen za naslednje materiale:\n\n` +
-          selectedItems.map(i => {
-            const edit = itemEdits[i.st];
-            const qty = edit?.qty ?? i.order_qty;
-            const date = edit?.date ?? i.receipt_date;
-            const dateFmt = date && date > "0001-01-01" ? fmtDate(date) : "—";
-            return `- ${i.st} | ${i.opis} | ${qty.toLocaleString(numFmt, { maximumFractionDigits: 2 })} ${i.uom} | Žel. datum: ${dateFmt}`;
-          }).join("\n") +
-          `\n\nHvala za vaše hitro odzivanje.\n\nLep pozdrav,\n${SENDER.name}\nSektor nabave\n${SENDER.email1}`
-    );
-    window.open(`mailto:${to}?subject=${subject}&body=${body}`);
+    if (selectedItems.length === 0) return;
+
+    setSending(true);
+    setSendStatus("idle");
+    setSendError(null);
+
+    try {
+      const res = await fetch("/api/email/inquiry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: currentEmail,
+          vendorName: selectedVendor.vendor_name,
+          vendorName2: selectedVendor.vendor_name_2,
+          vendorAddress: selectedVendor.vendor_address,
+          vendorPostCode: selectedVendor.vendor_post_code,
+          vendorCity: selectedVendor.vendor_city,
+          vendorCountry: selectedVendor.vendor_country,
+          vendorContact: selectedVendor.vendor_contact,
+          vendorPhone: selectedVendor.vendor_phone,
+          eng,
+          items: selectedItems,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json() as { error?: string };
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      setSendStatus("ok");
+    } catch (e) {
+      setSendStatus("error");
+      setSendError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSending(false);
+    }
   }
 
   if (loading) {
@@ -549,34 +568,55 @@ export default function InquiryPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                      <input
-                        type="email"
-                        value={currentEmail}
-                        onChange={e => setVendorEmails(prev => ({ ...prev, [selectedVendorNo!]: e.target.value }))}
-                        placeholder="E-pošta dobavitelja..."
-                        className="pl-8 pr-3 py-2 text-sm border border-border rounded-md bg-background w-56 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      />
+                  <div className="flex flex-col gap-1.5 items-end">
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                        <input
+                          type="email"
+                          value={currentEmail}
+                          onChange={e => setVendorEmails(prev => ({ ...prev, [selectedVendorNo!]: e.target.value }))}
+                          placeholder="E-pošta dobavitelja..."
+                          className="pl-8 pr-3 py-2 text-sm border border-border rounded-md bg-background w-56 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                      </div>
+                      <button
+                        onClick={handleSendEmail}
+                        disabled={!currentEmail || sending}
+                        className={`inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                          sendStatus === "ok"
+                            ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                            : sendStatus === "error"
+                              ? "bg-red-50 border border-red-300 text-red-700 hover:bg-red-100"
+                              : "border border-border hover:bg-muted"
+                        }`}
+                        title={!currentEmail ? "Vnesite e-poštni naslov" : "Pošlji HTML e-pošto dobavitelju"}
+                      >
+                        {sending ? (
+                          <><RefreshCw className="w-4 h-4 animate-spin" />Pošiljam...</>
+                        ) : sendStatus === "ok" ? (
+                          <><CheckCircle2 className="w-4 h-4" />Poslano</>
+                        ) : sendStatus === "error" ? (
+                          <><AlertCircle className="w-4 h-4" />Napaka</>
+                        ) : (
+                          <><Send className="w-4 h-4" />Pošlji</>
+                        )}
+                      </button>
                     </div>
-                    <button
-                      onClick={handleSendEmail}
-                      disabled={!currentEmail}
-                      className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium border border-border hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                      title={currentEmail ? "Odpri e-poštni odjemalec" : "Vnesite e-poštni naslov"}
-                    >
-                      <Mail className="w-4 h-4" />
-                      Pošlji
-                    </button>
-                    <button
-                      onClick={handlePrint}
-                      className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                    >
-                      <Printer className="w-4 h-4" />
-                      Natisni / PDF
-                    </button>
+                    {sendStatus === "ok" && (
+                      <div className="text-xs text-emerald-600">E-pošta poslana na {currentEmail}</div>
+                    )}
+                    {sendStatus === "error" && sendError && (
+                      <div className="text-xs text-red-600 max-w-xs text-right">{sendError}</div>
+                    )}
                   </div>
+                  <button
+                    onClick={handlePrint}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors self-start"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Natisni / PDF
+                  </button>
                 </div>
 
                 <InquiryLetter
