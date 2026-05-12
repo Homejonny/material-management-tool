@@ -194,7 +194,7 @@ async function fetchVendors(): Promise<Map<string, BcVendor>> {
 
 async function fetchRecentPurchaseVendors(): Promise<Map<string, PurchaseLine>> {
   const lines = await paginatedFetch<PurchaseLine>(
-    `${BASE_URL}/purchaseDocumentLines?$select=documentNumber,buyFromVendorNumber,number,vendorItemNumber,expectedReceiptDate&$top=500`
+    `${BASE_URL}/purchaseDocumentLines?$select=documentNumber,buyFromVendorNumber,number,vendorItemNumber,expectedReceiptDate&$top=2000`
   );
   const map = new Map<string, PurchaseLine>();
   const today = new Date().toISOString().slice(0, 10);
@@ -275,6 +275,11 @@ async function getOrderSuggestions(log: (m: string) => void): Promise<OrderSugge
 
   const suggestions: OrderSuggestion[] = materials
     .filter((m) => m.dejansko > 0)
+    // Skip items that already have an open purchase order with a future receipt date
+    .filter((m) => {
+      const line = purchaseMap.get(m.st.trim());
+      return !line || line.expectedReceiptDate < todayStr;
+    })
     .map((m) => {
       const key = m.st.trim();
       const bcItem = itemVendorMap.get(key);
