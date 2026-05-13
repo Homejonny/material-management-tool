@@ -27,20 +27,20 @@ async function parseQuoteText(text: string, sourceHint: string): Promise<ParsedQ
     messages: [
       {
         role: "system",
-        content: `You are a procurement assistant. Extract structured quote data from vendor responses.
+        content: `You are a procurement assistant. Extract structured quote data from vendor emails or price lists.
 Return a JSON object with a "lines" array. Each item in "lines" must have:
-- vendor_name: string (vendor/supplier name)
-- item_no: string (material/item code, often 6-digit number like 000024, or vendor's own code)
-- item_description: string (material description)
-- price: number or null (unit price)
-- currency: string (e.g. "EUR", "USD" — default "EUR")
-- quantity: number or null (offered/minimum quantity)
-- uom: string (unit of measure, e.g. "KG", "PCS", "L")
-- delivery_days: number or null (lead time in calendar days)
-- valid_until: string (validity date in ISO format YYYY-MM-DD, or "")
-- notes: string (any additional info, special conditions)
+- vendor_name: string — the supplier/vendor company name. Look for it in: the email signature (e.g. "d.o.o.", "GmbH", "Ltd"), "From:" line, letterhead, or company name mentioned in the text. Use the COMPANY name, not the person's name.
+- item_no: string — material/item code. Often a 6-digit number (e.g. 000024) or vendor's own code. If no code is given, leave as "".
+- item_description: string — full product/material name as written in the quote.
+- price: number or null — unit price (numeric only, no currency symbols). Parse European decimals: "34,80" → 34.80.
+- currency: string — "EUR", "USD", etc. Default "EUR".
+- quantity: number or null — offered or minimum quantity.
+- uom: string — unit of measure: "KG", "PCS", "L", etc. Default "KG" for extracts/powders.
+- delivery_days: number or null — lead time in calendar days. Convert weeks: "4-5 tednov" → 32 (midpoint in days).
+- valid_until: string — validity date ISO YYYY-MM-DD, or "".
+- notes: string — any extra info: parity (CIP, CIF, EXW), payment terms, special conditions.
 
-Extract ALL line items from the quote. If vendor name is not clear, use what you can infer.
+Extract EVERY product row from tables or lists. Do NOT skip any line item.
 If a field cannot be determined, use null or "".`,
       },
       {
@@ -165,8 +165,10 @@ router.get("/quotes/comparison", async (req, res) => {
 
     const groups = new Map<string, typeof rows>();
     for (const row of rows) {
-      const key = row.itemNo?.trim();
-      if (!key) continue;
+      // Use itemNo if available; otherwise fall back to a sanitized description key
+      const rawKey = row.itemNo?.trim();
+      const key = rawKey || `desc:${(row.itemDescription ?? "").trim().toLowerCase().slice(0, 80)}`;
+      if (!key || key === "desc:") continue;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(row);
     }
@@ -174,8 +176,10 @@ router.get("/quotes/comparison", async (req, res) => {
     const result = [...groups.entries()].map(([itemNo, quotes]) => {
       const prices = quotes.filter((q) => q.price != null).map((q) => parseFloat(String(q.price)));
       const minPrice = prices.length > 0 ? Math.min(...prices) : null;
+      // For description-based keys, show the first quote's description as the label
+      const displayKey = itemNo.startsWith("desc:") ? (quotes[0]?.itemDescription ?? itemNo) : itemNo;
       return {
-        canonical_item_no: itemNo,
+        canonical_item_no: displayKey,
         has_substitutes: false,
         substitute_item_nos: [] as string[],
         quotes: quotes.map((q) => ({
