@@ -20,14 +20,7 @@ type ParsedQuoteLine = {
   notes: string;
 };
 
-async function parseQuoteText(text: string, sourceHint: string): Promise<ParsedQuoteLine[]> {
-  const response = await openai.chat.completions.create({
-    model: "gpt-5.1",
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content: `You are a procurement assistant. Extract structured quote data from vendor emails or price lists.
+const SYSTEM_PROMPT = `You are a procurement assistant. Extract structured quote data from vendor emails, price lists, or screenshots.
 Return a JSON object with a "lines" array. Each item in "lines" must have:
 - vendor_name: string — the supplier/vendor company name. Look for it in: the email signature (e.g. "d.o.o.", "GmbH", "Ltd"), "From:" line, letterhead, or company name mentioned in the text. Use the COMPANY name, not the person's name.
 - item_no: string — material/item code. Often a 6-digit number (e.g. 000024) or vendor's own code. If no code is given, leave as "".
@@ -41,11 +34,39 @@ Return a JSON object with a "lines" array. Each item in "lines" must have:
 - notes: string — any extra info: parity (CIP, CIF, EXW), payment terms, special conditions.
 
 Extract EVERY product row from tables or lists. Do NOT skip any line item.
-If a field cannot be determined, use null or "".`,
-      },
+If a field cannot be determined, use null or "".`;
+
+async function parseQuoteText(text: string, sourceHint: string): Promise<ParsedQuoteLine[]> {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4.1",
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: `Source: ${sourceHint}\n\n${text}` },
+    ],
+  });
+
+  const raw = response.choices[0]?.message?.content ?? "{}";
+  const parsed = JSON.parse(raw) as { lines?: ParsedQuoteLine[] };
+  return parsed.lines ?? [];
+}
+
+async function parseQuoteImage(imageBuffer: Buffer, mimeType: string, sourceHint: string): Promise<ParsedQuoteLine[]> {
+  const base64 = imageBuffer.toString("base64");
+  const response = await openai.chat.completions.create({
+    model: "gpt-4.1",
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
       {
         role: "user",
-        content: `Source: ${sourceHint}\n\n${text}`,
+        content: [
+          {
+            type: "image_url",
+            image_url: { url: `data:${mimeType};base64,${base64}`, detail: "high" },
+          },
+          { type: "text", text: `Source: ${sourceHint}\n\nExtract all quote/price data from this image.` },
+        ],
       },
     ],
   });
@@ -61,11 +82,25 @@ router.post("/quotes/parse", upload.single("file"), async (req, res) => {
     let text = "";
     let sourceHint = "pasted text";
 
+    const IMAGE_MIME: Record<string, string> = {
+      ".png": "image/png",
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".webp": "image/webp",
+      ".gif": "image/gif",
+    };
+
     if (req.file) {
       const filename = req.file.originalname.toLowerCase();
       sourceHint = req.file.originalname;
 
-      if (filename.endsWith(".docx")) {
+      const imgExt = Object.keys(IMAGE_MIME).find((ext) => filename.endsWith(ext));
+      if (imgExt) {
+        // Image — use vision model
+        const lines = await parseQuoteImage(req.file.buffer, IMAGE_MIME[imgExt]!, sourceHint);
+        res.json({ lines, source: sourceHint, rawText: "" });
+        return;
+      } else if (filename.endsWith(".docx")) {
         const mammoth = (await import("mammoth")).default;
         const result = await mammoth.extractRawText({ buffer: req.file.buffer });
         text = result.value;

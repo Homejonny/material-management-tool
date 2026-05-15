@@ -228,10 +228,10 @@ export default function QuotesPage() {
               className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
                 dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/30"
               }`}>
-              <input ref={fileInputRef} type="file" accept=".txt,.docx,.doc" onChange={handleFileInput} className="hidden" />
+              <input ref={fileInputRef} type="file" accept=".txt,.docx,.doc,.png,.jpg,.jpeg,.webp,.gif" onChange={handleFileInput} className="hidden" />
               <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
               <p className="font-medium text-sm text-foreground">Povleci datoteko sem ali klikni</p>
-              <p className="text-xs text-muted-foreground mt-1">Sprejema: TXT, DOCX · Max 10 MB</p>
+              <p className="text-xs text-muted-foreground mt-1">Sprejema: TXT, DOCX, PNG, JPG, WEBP · Max 10 MB</p>
             </div>
 
             {/* Paste area */}
