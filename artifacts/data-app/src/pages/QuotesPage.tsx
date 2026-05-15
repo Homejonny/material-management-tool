@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Upload, FileText, Trash2, CheckCircle2, AlertTriangle, RefreshCw,
-  ChevronDown, ChevronUp, Inbox, Star, Package
+  ChevronDown, ChevronUp, Inbox, Star, Package, Download
 } from "lucide-react";
 
 type ParsedLine = {
@@ -187,6 +187,54 @@ export default function QuotesPage() {
     });
   }
 
+  function exportComparison() {
+    if (!comparison.length) return;
+
+    const esc = (v: string | number | null | undefined) => {
+      const s = v == null ? "" : String(v);
+      // Wrap in quotes if contains semicolons, quotes, or newlines
+      return s.includes(";") || s.includes('"') || s.includes("\n")
+        ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+
+    const headers = [
+      "Naziv materiala", "Ident (6-mestni)", "Dobavitelj",
+      "Cena/enota", "Valuta", "Enota mere", "Količina",
+      "Dobavni rok (dni)", "Veljavno do", "Opombe", "Vir", "Najboljša cena"
+    ];
+
+    const rows: string[] = [headers.map(esc).join(";")];
+
+    for (const group of comparison) {
+      for (const q of group.quotes) {
+        rows.push([
+          esc(group.canonical_description),
+          esc(group.canonical_item_no),
+          esc(q.vendorName),
+          esc(q.price != null ? String(q.price).replace(".", ",") : ""),
+          esc(q.currency),
+          esc(q.uom),
+          esc(q.quantity != null ? String(q.quantity).replace(".", ",") : ""),
+          esc(q.deliveryDays),
+          esc(q.validUntil ? new Date(q.validUntil).toLocaleDateString("sl-SI") : ""),
+          esc(q.notes),
+          esc(q.sourceFile),
+          q.is_best_price ? "DA" : "",
+        ].join(";"));
+      }
+    }
+
+    // UTF-8 BOM so Excel opens with correct encoding
+    const bom = "\uFEFF";
+    const blob = new Blob([bom + rows.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `primerjava_ponudb_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="max-w-[1600px] mx-auto px-6 py-6">
       <div className="mb-5 flex items-center justify-between">
@@ -196,11 +244,20 @@ export default function QuotesPage() {
             Naloži odgovor dobavitelja (e-pošta, Word, TXT) — AI razčleni in primerja pogoje
           </p>
         </div>
-        <button onClick={fetchQuotes} disabled={loadingQuotes}
-          className="print:hidden flex items-center gap-2 px-3 py-1.5 text-sm border border-border rounded-md bg-background hover:bg-muted transition-colors disabled:opacity-50">
-          <RefreshCw className={`w-3.5 h-3.5 ${loadingQuotes ? "animate-spin" : ""}`} />
-          Osveži
-        </button>
+        <div className="flex items-center gap-2">
+          {tab === "comparison" && comparison.length > 0 && (
+            <button onClick={exportComparison}
+              className="print:hidden flex items-center gap-2 px-3 py-1.5 text-sm border border-border rounded-md bg-background hover:bg-muted transition-colors">
+              <Download className="w-3.5 h-3.5" />
+              Izvozi v Excel
+            </button>
+          )}
+          <button onClick={fetchQuotes} disabled={loadingQuotes}
+            className="print:hidden flex items-center gap-2 px-3 py-1.5 text-sm border border-border rounded-md bg-background hover:bg-muted transition-colors disabled:opacity-50">
+            <RefreshCw className={`w-3.5 h-3.5 ${loadingQuotes ? "animate-spin" : ""}`} />
+            Osveži
+          </button>
+        </div>
       </div>
 
       {/* Tab switcher */}
