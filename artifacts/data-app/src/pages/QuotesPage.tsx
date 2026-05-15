@@ -61,6 +61,7 @@ export default function QuotesPage() {
   const [parsing, setParsing] = useState(false);
   const [parseResult, setParseResult] = useState<{ lines: ParsedLine[]; source: string; rawText: string } | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [vendorHint, setVendorHint] = useState("");
   const [pasteText, setPasteText] = useState("");
   const [editedLines, setEditedLines] = useState<ParsedLine[]>([]);
   const [saving, setSaving] = useState(false);
@@ -94,7 +95,7 @@ export default function QuotesPage() {
       const res = await fetch("/api/quotes/parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, vendorHint: vendorHint.trim() || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail ?? data.error);
@@ -115,6 +116,7 @@ export default function QuotesPage() {
     try {
       const form = new FormData();
       form.append("file", file);
+      if (vendorHint.trim()) form.append("vendorHint", vendorHint.trim());
       const res = await fetch("/api/quotes/parse", { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail ?? data.error);
@@ -219,6 +221,20 @@ export default function QuotesPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left: upload + paste */}
           <div className="space-y-4">
+            {/* Vendor name hint */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                Ime dobavitelja <span className="text-muted-foreground font-normal">(priporočeno)</span>
+              </label>
+              <input
+                value={vendorHint}
+                onChange={e => setVendorHint(e.target.value)}
+                placeholder="npr. Vita Actives, PALCONutrifit d.o.o. ..."
+                className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Vpišite, da AI ne zamenja dobavitelja z GMP Pharma</p>
+            </div>
+
             {/* Dropzone */}
             <div
               onDragOver={e => { e.preventDefault(); setDragOver(true); }}

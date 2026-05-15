@@ -20,9 +20,14 @@ type ParsedQuoteLine = {
   notes: string;
 };
 
-const SYSTEM_PROMPT = `You are a procurement assistant. Extract structured quote data from vendor emails, price lists, or screenshots.
+function buildSystemPrompt(vendorHint?: string): string {
+  const vendorLine = vendorHint
+    ? `- vendor_name: ALWAYS use exactly "${vendorHint}" for every row — this is the supplier who sent the document.`
+    : `- vendor_name: the SUPPLIER company name (the company sending the quote). IMPORTANT: "GMP Pharma d.o.o." and "GMP Pharma" is the BUYER/CUSTOMER — NEVER use it as vendor_name. Look for the actual supplier name in the email signature, "From:" field, sender's letterhead, or any company name other than GMP Pharma. If no other company is identifiable, leave vendor_name as "".`;
+
+  return `You are a procurement assistant. Extract structured quote data from vendor emails, price lists, or screenshots.
 Return a JSON object with a "lines" array. Each item in "lines" must have:
-- vendor_name: string — the supplier/vendor company name. Look for it in: the email signature (e.g. "d.o.o.", "GmbH", "Ltd"), "From:" line, letterhead, or company name mentioned in the text. Use the COMPANY name, not the person's name.
+- ${vendorLine}
 - item_no: string — material/item code. Often a 6-digit number (e.g. 000024) or vendor's own code. If no code is given, leave as "".
 - item_description: string — full product/material name as written in the quote.
 - price: number or null — unit price (numeric only, no currency symbols). Parse European decimals: "34,80" → 34.80.
@@ -35,13 +40,14 @@ Return a JSON object with a "lines" array. Each item in "lines" must have:
 
 Extract EVERY product row from tables or lists. Do NOT skip any line item.
 If a field cannot be determined, use null or "".`;
+}
 
-async function parseQuoteText(text: string, sourceHint: string): Promise<ParsedQuoteLine[]> {
+async function parseQuoteText(text: string, sourceHint: string, vendorHint?: string): Promise<ParsedQuoteLine[]> {
   const response = await openai.chat.completions.create({
     model: "gpt-4.1",
     response_format: { type: "json_object" },
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: buildSystemPrompt(vendorHint) },
       { role: "user", content: `Source: ${sourceHint}\n\n${text}` },
     ],
   });
@@ -51,13 +57,13 @@ async function parseQuoteText(text: string, sourceHint: string): Promise<ParsedQ
   return parsed.lines ?? [];
 }
 
-async function parseQuoteImage(imageBuffer: Buffer, mimeType: string, sourceHint: string): Promise<ParsedQuoteLine[]> {
+async function parseQuoteImage(imageBuffer: Buffer, mimeType: string, sourceHint: string, vendorHint?: string): Promise<ParsedQuoteLine[]> {
   const base64 = imageBuffer.toString("base64");
   const response = await openai.chat.completions.create({
     model: "gpt-4.1",
     response_format: { type: "json_object" },
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: buildSystemPrompt(vendorHint) },
       {
         role: "user",
         content: [
@@ -81,6 +87,7 @@ router.post("/quotes/parse", upload.single("file"), async (req, res) => {
   try {
     let text = "";
     let sourceHint = "pasted text";
+    const vendorHint = req.body?.vendorHint ? String(req.body.vendorHint).trim() : undefined;
 
     const IMAGE_MIME: Record<string, string> = {
       ".png": "image/png",
@@ -96,8 +103,7 @@ router.post("/quotes/parse", upload.single("file"), async (req, res) => {
 
       const imgExt = Object.keys(IMAGE_MIME).find((ext) => filename.endsWith(ext));
       if (imgExt) {
-        // Image — use vision model
-        const lines = await parseQuoteImage(req.file.buffer, IMAGE_MIME[imgExt]!, sourceHint);
+        const lines = await parseQuoteImage(req.file.buffer, IMAGE_MIME[imgExt]!, sourceHint, vendorHint);
         res.json({ lines, source: sourceHint, rawText: "" });
         return;
       } else if (filename.endsWith(".docx")) {
@@ -120,7 +126,7 @@ router.post("/quotes/parse", upload.single("file"), async (req, res) => {
       return;
     }
 
-    const lines = await parseQuoteText(text, sourceHint);
+    const lines = await parseQuoteText(text, sourceHint, vendorHint);
     res.json({ lines, source: sourceHint, rawText: text.slice(0, 5000) });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
