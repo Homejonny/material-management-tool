@@ -35,6 +35,7 @@ type SavedQuote = {
 };
 
 type ComparisonGroup = {
+  canonical_description: string;
   canonical_item_no: string;
   has_substitutes: boolean;
   substitute_item_nos: string[];
@@ -404,48 +405,37 @@ export default function QuotesPage() {
           {!loadingQuotes && comparison.length > 0 && (
             <div className="space-y-3">
               {comparison.map((group) => {
-                const isExpanded = expandedGroups.has(group.canonical_item_no);
+                const groupKey = group.canonical_description || group.canonical_item_no;
+                const isExpanded = expandedGroups.has(groupKey);
                 const bestQuote = group.quotes.find(q => q.is_best_price);
                 const hasMultipleVendors = new Set(group.quotes.map(q => q.vendorName)).size > 1;
 
                 return (
-                  <div key={group.canonical_item_no}
-                    className={`border rounded-xl overflow-hidden ${
-                      group.has_substitutes && hasMultipleVendors
-                        ? "border-amber-300 shadow-sm"
-                        : "border-border"
-                    }`}>
+                  <div key={groupKey}
+                    className="border border-border rounded-xl overflow-hidden">
                     {/* Group header */}
                     <button
-                      onClick={() => toggleGroup(group.canonical_item_no)}
-                      className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${
-                        group.has_substitutes && hasMultipleVendors
-                          ? "bg-amber-50 hover:bg-amber-100"
-                          : "bg-muted/30 hover:bg-muted/60"
-                      }`}>
-                      <div className="flex items-center gap-3">
-                        {group.has_substitutes && hasMultipleVendors && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-800">
-                            <Star className="w-2.5 h-2.5" /> Nadomestki
-                          </span>
-                        )}
-                        <span className="font-mono text-sm font-semibold text-foreground">
-                          {group.canonical_item_no}
+                      onClick={() => toggleGroup(groupKey)}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left bg-muted/30 hover:bg-muted/60 transition-colors">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {/* Description — primary */}
+                        <span className="text-sm font-semibold text-foreground truncate">
+                          {group.canonical_description || "—"}
                         </span>
-                        {group.substitute_item_nos.length > 0 && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Package className="w-3 h-3" />
-                            + nadomestki: {group.substitute_item_nos.join(", ")}
+                        {/* 6-digit ident — secondary */}
+                        {group.canonical_item_no && (
+                          <span className="shrink-0 font-mono text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                            {group.canonical_item_no}
                           </span>
                         )}
-                        <span className="text-xs text-muted-foreground">{group.quotes.length} ponudb</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">{group.quotes.length} {group.quotes.length === 1 ? "ponudba" : "ponudbe"}</span>
                         {bestQuote && (
-                          <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                          <span className="shrink-0 text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
                             Najboljša: {fmtPrice(bestQuote.price, bestQuote.currency)} — {bestQuote.vendorName}
                           </span>
                         )}
                       </div>
-                      {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                      {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
                     </button>
 
                     {/* Quotes table */}

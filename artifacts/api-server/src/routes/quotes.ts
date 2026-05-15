@@ -28,7 +28,7 @@ function buildSystemPrompt(vendorHint?: string): string {
   return `You are a procurement assistant. Extract structured quote data from vendor emails, price lists, or screenshots.
 Return a JSON object with a "lines" array. Each item in "lines" must have:
 - ${vendorLine}
-- item_no: string — material/item code. Often a 6-digit number (e.g. 000024) or vendor's own code. If no code is given, leave as "".
+- item_no: string — GMP Pharma's internal 6-digit material code ONLY (e.g. "000024", "000133"). It must be exactly 6 digits with leading zeros. NEVER use the vendor's own product code, short numbers like "133", or any non-GMP code. If the document does not explicitly contain a GMP 6-digit code, leave as "".
 - item_description: string — full product/material name as written in the quote.
 - price: number or null — unit price (numeric only, no currency symbols). Parse European decimals: "34,80" → 34.80.
 - currency: string — "EUR", "USD", etc. Default "EUR".
@@ -198,29 +198,40 @@ router.delete("/quotes/:id", async (req, res) => {
   }
 });
 
-// GET /api/quotes/comparison — comparison grouped by material
-// NOTE: substitute grouping removed — BC OData for table 5715 not published
+// Validate that an item_no is a proper 6-digit GMP internal code
+function isValidItemNo(code: string | null | undefined): boolean {
+  return /^\d{6}$/.test((code ?? "").trim());
+}
+
+// GET /api/quotes/comparison — comparison grouped by material description
 router.get("/quotes/comparison", async (req, res) => {
   try {
     const rows = await db.select().from(vendorQuotesTable).orderBy(vendorQuotesTable.createdAt);
 
+    // Group by normalised description (primary); fall back to 6-digit item_no when description is empty
     const groups = new Map<string, typeof rows>();
     for (const row of rows) {
-      // Use itemNo if available; otherwise fall back to a sanitized description key
-      const rawKey = row.itemNo?.trim();
-      const key = rawKey || `desc:${(row.itemDescription ?? "").trim().toLowerCase().slice(0, 80)}`;
-      if (!key || key === "desc:") continue;
+      const desc = (row.itemDescription ?? "").trim();
+      const itemNo = (row.itemNo ?? "").trim();
+      const validNo = isValidItemNo(itemNo) ? itemNo : "";
+
+      const key = desc.toLowerCase() || (validNo ? `no:${validNo}` : "");
+      if (!key) continue;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(row);
     }
 
-    const result = [...groups.entries()].map(([itemNo, quotes]) => {
+    const result = [...groups.entries()].map(([, quotes]) => {
       const prices = quotes.filter((q) => q.price != null).map((q) => parseFloat(String(q.price)));
       const minPrice = prices.length > 0 ? Math.min(...prices) : null;
-      // For description-based keys, show the first quote's description as the label
-      const displayKey = itemNo.startsWith("desc:") ? (quotes[0]?.itemDescription ?? itemNo) : itemNo;
+
+      // Use first non-empty description; find the 6-digit item_no if any row has one
+      const canonicalDesc = quotes.find((q) => q.itemDescription?.trim())?.itemDescription?.trim() ?? "";
+      const canonicalNo = quotes.find((q) => isValidItemNo(q.itemNo))?.itemNo?.trim() ?? "";
+
       return {
-        canonical_item_no: displayKey,
+        canonical_description: canonicalDesc,
+        canonical_item_no: canonicalNo,
         has_substitutes: false,
         substitute_item_nos: [] as string[],
         quotes: quotes.map((q) => ({
@@ -230,7 +241,9 @@ router.get("/quotes/comparison", async (req, res) => {
           is_best_price: q.price != null && parseFloat(String(q.price)) === minPrice,
         })),
       };
-    }).sort((a, b) => a.canonical_item_no.localeCompare(b.canonical_item_no));
+    }).sort((a, b) =>
+      a.canonical_description.localeCompare(b.canonical_description, "sl", { sensitivity: "base" })
+    );
 
     res.json(result);
   } catch (err) {
