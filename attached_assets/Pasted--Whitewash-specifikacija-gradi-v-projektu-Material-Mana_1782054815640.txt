@@ -1,0 +1,61 @@
+# Whitewash — specifikacija (gradi v projektu Material Management Tool)
+
+## Cilj
+Primerjalno povpraševanje za ISTI material pri VEČ dobaviteljih, kjer ima vsak dobavitelj
+svojo šifro in svoj naziv artikla; nato analiza prejetih ponudb in priprava predloga naročila.
+
+## Obstoječi gradniki (uporabi/razširi — ne gradi na novo)
+- `artifacts/data-app/src/pages/InquiryPage.tsx` — obstoječe povpraševanje (grupirano po dobaviteljih).
+- `artifacts/api-server/src/routes/orders.ts` → `GET /orders/by-vendor` — naročilni predlogi V ŽIVO
+  iz Business Central (OData): `getOrderSuggestions` + `fetchVendors`.
+- `artifacts/api-server/src/routes/email.ts` → `POST /email/inquiry` — pošiljanje HTML dopisa
+  (nodemailer, env `SMTP_*`), jeziki SL/EN glede na državo dobavitelja, pošiljatelj GMP Pharma,
+  funkcija `buildHtml`.
+- `artifacts/api-server/src/routes/quotes.ts` — ŽE obstaja in uporablja bazo → osnova za fazo 3.
+- `lib/db` (Drizzle + Postgres) — za nove tabele.
+- `lib/api-spec` (OpenAPI) + `lib/api-zod` + `lib/api-client-react` — pogodbeni codegen: vsako novo
+  ruto najprej definiraj v `openapi.yaml`, nato `pnpm --filter @workspace/api-spec run codegen`.
+- `lib/integrations-openai-ai-server` — OpenAI na voljo (samodejno predlaganje povezav po nazivu/opisu).
+
+## ⚙️ Odločitev pred fazo 1 — kako povezati dobaviteljeve šifre v eno generično kodo
+Priporočilo: A + (opcijsko) B + C.
+- A) Ročno — uporabnik ustvari generično kodo in ji pripne artikle posameznih dobaviteljev.
+- B) Samodejni predlog (OpenAI ujemanje po nazivu+opisu), uporabnik potrdi.
+- C) Uvoz iz BC — če v BC obstajajo Item Reference / Vendor Item No. povezave, jih uvozi.
+
+## Faza 1 — Generična koda (cross-reference)
+Nove tabele (`lib/db`):
+- `generic_materials`: id, generic_code (interna koda, ročno ali avtomatsko), name, uom, notes, časovne oznake.
+- `generic_material_suppliers`: id, generic_material_id (FK), vendor_no, vendor_name,
+  vendor_item_no, vendor_item_name, notes.
+Nova stran (npr. »Generične kode / Whitewash«):
+- ustvari / uredi / briši generično kodo,
+- iskanje in pripenjanje dobaviteljevih artiklov (po šifri/nazivu; vir = obstoječi BC podatki),
+- (opcijsko) gumb »Predlagaj povezave« (OpenAI),
+- (opcijsko) uvoz BC Item Reference.
+Nove rute (OpenAPI-first): CRUD `/generic-materials`, `/generic-materials/{id}/suppliers`.
+
+## Faza 2 — Primerjalno povpraševanje
+- Izbereš generično kodo (ali več) → vidiš vse povezane dobavitelje.
+- Obkljukaš dobavitelje, ki naj prejmejo povpraševanje; vneseš želeno količino + datum.
+- Za vsakega izbranega dobavitelja se generira PRAVILNO NASLOVLJEN dopis, ki prikaže NJEGOVO
+  šifro + naziv (s tem odpravi sedanjo napako, kjer je dopis vedno naslovljen na izbranega dobavitelja).
+- Razširi `POST /email/inquiry` ali dodaj `POST /email/inquiry-comparative`, ki v zanki pošlje
+  vsakemu dobavitelju svoj dopis (ponovno uporabi `buildHtml`, jezik SL/EN).
+- Shrani poslano povpraševanje: `rfqs` (id, generic_material_id, qty, requested_date, sent_at) +
+  `rfq_recipients` (id, rfq_id, vendor_no, email, vendor_item_no, status).
+
+## Faza 3 — Analiza ponudb + predlog naročila
+- Za vsako poslano povpraševanje vnos prejetih ponudb (gradi na `quotes.ts`): cena/EM, valuta,
+  dobavni rok / lead time, MOQ, opombe — po dobavitelju.
+- Primerjalni pogled: dobavitelji enega materiala drug ob drugem (cena, rok, MOQ), označi najugodnejšo.
+- Predlog naročila: izbereš zmagovalca + količino → predlog, ki ga natisneš/izvoziš ali predaš
+  obstoječemu naročilnemu predlogu.
+- Tabela `offers`: id, rfq_id, vendor_no, unit_price, currency, delivery_date, moq, notes, received_at.
+
+## Presečne zahteve
+- Jeziki SL/EN glede na državo dobavitelja (ponovno uporabi obstoječi slovar `T`).
+- Pošiljatelj = GMP Pharma (obstoječi `SENDER`).
+- Vse nove API rute: najprej `openapi.yaml`, validacija z Zod, hooki preko codegen.
+- Nove tabele preko `lib/db` (+ `pnpm --filter @workspace/db run push` na dev). Na produkciji ne pozabi
+  pravic `GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO <db_user>;` po CREATE TABLE.

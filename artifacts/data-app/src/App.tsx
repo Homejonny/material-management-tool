@@ -7,7 +7,8 @@ import SchedulePage from "@/pages/SchedulePage";
 import OrdersPage from "@/pages/OrdersPage";
 import InquiryPage from "@/pages/InquiryPage";
 import QuotesPage from "@/pages/QuotesPage";
-import { Package, CalendarClock, ShoppingCart, FileText, Inbox, LogOut } from "lucide-react";
+import WhitewashPage from "@/pages/WhitewashPage";
+import { Package, CalendarClock, ShoppingCart, FileText, Inbox, GitCompareArrows, LogOut } from "lucide-react";
 import { PinLogin, loadSession, clearSession, type AppUser } from "@/components/PinLogin";
 import { PresenceBar } from "@/components/PresenceBar";
 
@@ -20,7 +21,7 @@ const queryClient = new QueryClient({
   },
 });
 
-type Page = "materials" | "schedule" | "orders" | "inquiry" | "quotes";
+type Page = "materials" | "schedule" | "orders" | "inquiry" | "quotes" | "whitewash";
 
 function Nav({
   page,
@@ -39,6 +40,7 @@ function Nav({
     { id: "orders", label: "Predlog naročil", icon: <ShoppingCart className="w-4 h-4" /> },
     { id: "inquiry", label: "Povpraševanje", icon: <FileText className="w-4 h-4" /> },
     { id: "quotes", label: "Prejete ponudbe", icon: <Inbox className="w-4 h-4" /> },
+    { id: "whitewash", label: "Primerjalno RFQ", icon: <GitCompareArrows className="w-4 h-4" /> },
   ];
   return (
     <div className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border print:hidden">
@@ -107,6 +109,7 @@ function App() {
         {page === "orders" && <OrdersPage />}
         {page === "inquiry" && <InquiryPage />}
         {page === "quotes" && <QuotesPage />}
+        {page === "whitewash" && <WhitewashPage />}
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

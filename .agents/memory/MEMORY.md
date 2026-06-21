@@ -1,0 +1,2 @@
+- [Zod imports in api-server](zod-api-server.md) — api-server has no zod by default; add `zod: "catalog:"` to its package.json dependencies and import from `zod/v4`.
+- [Whitewash feature](whitewash-feature.md) — Primerjalno RFQ feature: DB tables, API routes, and frontend page all implemented and working.
