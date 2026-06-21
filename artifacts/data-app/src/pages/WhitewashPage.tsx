@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Plus, Pencil, Trash2, ChevronDown, ChevronUp, RefreshCw,
   Send, Star, Package, X, Check, AlertTriangle, CheckCircle2,
-  Building2, Mail, FileText
+  Building2, Mail, FileText, Sparkles, Search, ArrowDownToLine
 } from "lucide-react";
 
 type Supplier = {
@@ -66,6 +66,18 @@ type Rfq = {
   offers: Offer[];
 };
 
+type AiSuggestion = {
+  itemNo: string;
+  itemDescription: string;
+  confidence: "high" | "medium" | "low";
+  reason: string;
+  vendorNo: string;
+  vendorName: string;
+  vendorItemNo: string;
+  vendorCountry: string;
+  uom: string;
+};
+
 type WTab = "materials" | "rfqs";
 
 function fmtDate(iso: string) {
@@ -79,7 +91,14 @@ function fmtPrice(v: number | null, cur: string) {
 }
 
 const EMPTY_MATERIAL = { genericCode: "", name: "", uom: "KG", notes: "" };
-const EMPTY_SUPPLIER = { vendorNo: "", vendorName: "", vendorEmail: "", vendorCountry: "", vendorItemNo: "", vendorItemName: "", notes: "" };
+const EMPTY_SUPPLIER: Partial<Supplier> = { vendorNo: "", vendorName: "", vendorEmail: "", vendorCountry: "", vendorItemNo: "", vendorItemName: "", notes: "" };
+
+const CONFIDENCE_COLORS = {
+  high: "bg-green-100 text-green-800 border-green-200",
+  medium: "bg-yellow-50 text-yellow-800 border-yellow-200",
+  low: "bg-gray-100 text-gray-600 border-gray-200",
+};
+const CONFIDENCE_LABELS = { high: "visoka", medium: "srednja", low: "nizka" };
 
 // ─── Generic Materials Tab ────────────────────────────────────────────────────
 
@@ -95,6 +114,17 @@ function MaterialsTab() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // BC import state
+  const [bcItemNo, setBcItemNo] = useState("");
+  const [bcLoading, setBcLoading] = useState(false);
+  const [bcError, setBcError] = useState<string | null>(null);
+
+  // AI suggest state
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([]);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [showAi, setShowAi] = useState(false);
+
   const load = useCallback(() => {
     setLoading(true);
     fetch("/api/generic-materials").then(r => r.json()).then(setMaterials).finally(() => setLoading(false));
@@ -104,6 +134,58 @@ function MaterialsTab() {
 
   function toggleExpand(id: number) {
     setExpanded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+
+  function openNewMaterial() {
+    setEditingMat(EMPTY_MATERIAL);
+    setEditingMatId(null);
+    setAiSuggestions([]);
+    setAiError(null);
+    setShowAi(false);
+  }
+
+  function openNewSupplier(matId: number) {
+    setEditingSup(EMPTY_SUPPLIER);
+    setEditingSupId(null);
+    setEditingSupMatId(matId);
+    setBcItemNo("");
+    setBcError(null);
+  }
+
+  async function fetchBcVendor() {
+    if (!bcItemNo.trim()) return;
+    setBcLoading(true); setBcError(null);
+    try {
+      const res = await fetch(`/api/bc-vendor-info?itemNo=${encodeURIComponent(bcItemNo.trim())}`);
+      const data = await res.json();
+      if (!res.ok) { setBcError(data.error ?? "Napaka"); return; }
+      setEditingSup(prev => ({
+        ...prev,
+        vendorNo: data.vendorNo || prev?.vendorNo || "",
+        vendorName: data.vendorName || prev?.vendorName || "",
+        vendorCountry: data.vendorCountry || prev?.vendorCountry || "",
+        vendorItemNo: data.vendorItemNo || prev?.vendorItemNo || "",
+        vendorItemName: data.vendorItemName || prev?.vendorItemName || "",
+      }));
+    } catch { setBcError("Napaka pri BC klicu"); }
+    finally { setBcLoading(false); }
+  }
+
+  async function fetchAiSuggestions() {
+    if (!editingMat?.name?.trim()) return;
+    setAiLoading(true); setAiError(null); setAiSuggestions([]); setShowAi(true);
+    try {
+      const res = await fetch("/api/generic-materials/ai-suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editingMat.name, notes: editingMat.notes }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setAiError(data.error ?? "Napaka"); return; }
+      setAiSuggestions(data.suggestions ?? []);
+      if ((data.suggestions ?? []).length === 0) setAiError("Ni zadetkov — poskusi s krajšim ali splošnejšim imenom");
+    } catch { setAiError("Napaka pri AI klicu"); }
+    finally { setAiLoading(false); }
   }
 
   async function saveMaterial() {
@@ -145,6 +227,14 @@ function MaterialsTab() {
     load();
   }
 
+  function applyAiSuggestion(s: AiSuggestion) {
+    setEditingMat(prev => ({
+      ...prev,
+      uom: s.uom || prev?.uom || "KG",
+    }));
+    setShowAi(false);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -153,19 +243,19 @@ function MaterialsTab() {
           <button onClick={load} disabled={loading} className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-border rounded-md bg-background hover:bg-muted">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Osveži
           </button>
-          <button onClick={() => { setEditingMat(EMPTY_MATERIAL); setEditingMatId(null); }}
+          <button onClick={openNewMaterial}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
             <Plus className="w-3.5 h-3.5" /> Nova koda
           </button>
         </div>
       </div>
 
-      {error && <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"><AlertTriangle className="w-4 h-4" />{error}</div>}
+      {error && <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"><AlertTriangle className="w-4 h-4 shrink-0" />{error}</div>}
 
       {/* Material edit modal */}
       {editingMat && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl border shadow-xl p-6 w-full max-w-md mx-4">
+          <div className="bg-white rounded-xl border shadow-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <h3 className="font-semibold text-foreground mb-4">{editingMatId ? "Uredi generično kodo" : "Nova generična koda"}</h3>
             <div className="space-y-3">
               <div><label className="text-xs text-muted-foreground block mb-1">Koda *</label>
@@ -173,20 +263,56 @@ function MaterialsTab() {
                   className="w-full border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="npr. GM-001" /></div>
               <div><label className="text-xs text-muted-foreground block mb-1">Naziv *</label>
                 <input value={editingMat.name ?? ""} onChange={e => setEditingMat(p => ({ ...p, name: e.target.value }))}
-                  className="w-full border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
-              <div><label className="text-xs text-muted-foreground block mb-1">Enota mere</label>
-                <input value={editingMat.uom ?? "KG"} onChange={e => setEditingMat(p => ({ ...p, uom: e.target.value }))}
-                  className="w-full border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
+                  className="w-full border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="npr. Magnezijev stearat (generično)" /></div>
+              <div className="flex gap-2">
+                <div className="flex-1"><label className="text-xs text-muted-foreground block mb-1">Enota mere</label>
+                  <input value={editingMat.uom ?? "KG"} onChange={e => setEditingMat(p => ({ ...p, uom: e.target.value }))}
+                    className="w-full border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
+              </div>
               <div><label className="text-xs text-muted-foreground block mb-1">Opombe</label>
                 <textarea value={editingMat.notes ?? ""} onChange={e => setEditingMat(p => ({ ...p, notes: e.target.value }))} rows={2}
                   className="w-full border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" /></div>
             </div>
+
+            {/* AI Suggestions */}
+            <div className="mt-4 border-t border-border pt-3">
+              <button onClick={fetchAiSuggestions} disabled={aiLoading || !editingMat.name?.trim()}
+                className="flex items-center gap-1.5 text-xs text-purple-700 hover:text-purple-900 font-medium disabled:opacity-40">
+                {aiLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                {aiLoading ? "Iščem v BC…" : "AI: predlagaj BC artikle z istim materialom"}
+              </button>
+              {aiError && <p className="text-xs text-red-600 mt-1">{aiError}</p>}
+              {showAi && aiSuggestions.length > 0 && (
+                <div className="mt-2 space-y-1.5">
+                  <p className="text-xs text-muted-foreground font-medium">Predlogi (klikni za dodajanje enote mere):</p>
+                  {aiSuggestions.map(s => (
+                    <div key={s.itemNo} onClick={() => applyAiSuggestion(s)}
+                      className="flex items-start gap-2 p-2 border border-border rounded-lg cursor-pointer hover:bg-muted/40 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs text-muted-foreground">{s.itemNo}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${CONFIDENCE_COLORS[s.confidence as keyof typeof CONFIDENCE_COLORS] ?? CONFIDENCE_COLORS.low}`}>
+                            {CONFIDENCE_LABELS[s.confidence as keyof typeof CONFIDENCE_LABELS] ?? s.confidence}
+                          </span>
+                        </div>
+                        <p className="text-xs font-medium text-foreground mt-0.5 truncate">{s.itemDescription}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{s.reason}</p>
+                        {s.vendorName && <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1"><Building2 className="w-3 h-3" />{s.vendorName}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-2 mt-4">
               <button onClick={saveMaterial} disabled={saving || !editingMat.name || !editingMat.genericCode}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Shrani
               </button>
-              <button onClick={() => { setEditingMat(null); setEditingMatId(null); }} className="px-4 py-2 border border-border rounded-md text-sm hover:bg-muted"><X className="w-4 h-4" /></button>
+              <button onClick={() => { setEditingMat(null); setEditingMatId(null); setAiSuggestions([]); setShowAi(false); }}
+                className="px-4 py-2 border border-border rounded-md text-sm hover:bg-muted"><X className="w-4 h-4" /></button>
             </div>
           </div>
         </div>
@@ -195,8 +321,31 @@ function MaterialsTab() {
       {/* Supplier edit modal */}
       {editingSup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl border shadow-xl p-6 w-full max-w-lg mx-4">
+          <div className="bg-white rounded-xl border shadow-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <h3 className="font-semibold text-foreground mb-4">{editingSupId ? "Uredi dobavitelja" : "Dodaj dobavitelja"}</h3>
+
+            {/* BC Import */}
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs font-semibold text-blue-700 mb-2 flex items-center gap-1.5">
+                <ArrowDownToLine className="w-3.5 h-3.5" /> Uvozi iz BC (neobvezno)
+              </p>
+              <div className="flex gap-2">
+                <input value={bcItemNo} onChange={e => setBcItemNo(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && fetchBcVendor()}
+                  placeholder="Šifra BC artikla (npr. 000123)"
+                  className="flex-1 border border-blue-300 rounded px-2.5 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                <button onClick={fetchBcVendor} disabled={bcLoading || !bcItemNo.trim()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+                  {bcLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                  Poišči
+                </button>
+              </div>
+              {bcError && <p className="text-xs text-red-600 mt-1.5">{bcError}</p>}
+              {!bcLoading && !bcError && bcItemNo && editingSup.vendorName && (
+                <p className="text-xs text-green-700 mt-1.5 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Polja so bila izpolnjena iz BC</p>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               {([
                 ["Naziv dobavitelja *", "vendorName", "text"],
@@ -222,7 +371,8 @@ function MaterialsTab() {
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Shrani
               </button>
-              <button onClick={() => { setEditingSup(null); setEditingSupId(null); setEditingSupMatId(null); }} className="px-4 py-2 border border-border rounded-md text-sm hover:bg-muted"><X className="w-4 h-4" /></button>
+              <button onClick={() => { setEditingSup(null); setEditingSupId(null); setEditingSupMatId(null); setBcItemNo(""); setBcError(null); }}
+                className="px-4 py-2 border border-border rounded-md text-sm hover:bg-muted"><X className="w-4 h-4" /></button>
             </div>
           </div>
         </div>
@@ -231,7 +381,6 @@ function MaterialsTab() {
       {loading && !materials.length && (
         <div className="flex items-center justify-center h-32 text-muted-foreground"><RefreshCw className="w-5 h-5 animate-spin mr-2" /> Nalagam...</div>
       )}
-
       {!loading && !materials.length && (
         <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
           <Package className="w-10 h-10 mb-3 opacity-30" />
@@ -246,15 +395,15 @@ function MaterialsTab() {
           return (
             <div key={m.id} className="border border-border rounded-xl overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 bg-muted/20 hover:bg-muted/40 transition-colors">
-                <button onClick={() => toggleExpand(m.id)} className="flex items-center gap-3 flex-1 text-left">
-                  <span className="font-mono text-xs bg-primary/10 text-primary px-2 py-0.5 rounded font-bold">{m.genericCode}</span>
-                  <span className="font-semibold text-sm text-foreground">{m.name}</span>
-                  <span className="text-xs text-muted-foreground">{m.uom}</span>
-                  <span className="text-xs text-muted-foreground">{m.suppliers.length} {m.suppliers.length === 1 ? "dobavitelj" : "dobaviteljev"}</span>
-                  {isOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                <button onClick={() => toggleExpand(m.id)} className="flex items-center gap-3 flex-1 text-left min-w-0">
+                  <span className="font-mono text-xs bg-primary/10 text-primary px-2 py-0.5 rounded font-bold shrink-0">{m.genericCode}</span>
+                  <span className="font-semibold text-sm text-foreground truncate">{m.name}</span>
+                  <span className="text-xs text-muted-foreground shrink-0">{m.uom}</span>
+                  <span className="text-xs text-muted-foreground shrink-0">{m.suppliers.length} {m.suppliers.length === 1 ? "dobavitelj" : "dobaviteljev"}</span>
+                  {isOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
                 </button>
-                <div className="flex gap-1 ml-2">
-                  <button onClick={() => { setEditingMat({ genericCode: m.genericCode, name: m.name, uom: m.uom, notes: m.notes }); setEditingMatId(m.id); }}
+                <div className="flex gap-1 ml-2 shrink-0">
+                  <button onClick={() => { setEditingMat({ genericCode: m.genericCode, name: m.name, uom: m.uom, notes: m.notes }); setEditingMatId(m.id); setAiSuggestions([]); setShowAi(false); }}
                     className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded"><Pencil className="w-3.5 h-3.5" /></button>
                   <button onClick={() => deleteMaterial(m.id)}
                     className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -267,7 +416,7 @@ function MaterialsTab() {
                   <div className="px-4 py-3">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Dobavitelji</span>
-                      <button onClick={() => { setEditingSup(EMPTY_SUPPLIER); setEditingSupId(null); setEditingSupMatId(m.id); }}
+                      <button onClick={() => openNewSupplier(m.id)}
                         className="flex items-center gap-1 text-xs text-primary hover:underline">
                         <Plus className="w-3 h-3" /> Dodaj dobavitelja
                       </button>
@@ -284,9 +433,10 @@ function MaterialsTab() {
                             {s.vendorItemNo && <span className="font-mono text-muted-foreground bg-background border border-border px-1.5 py-0.5 rounded shrink-0">{s.vendorItemNo}</span>}
                             {s.vendorItemName && <span className="text-muted-foreground truncate">{s.vendorItemName}</span>}
                             {s.vendorEmail && <span className="flex items-center gap-1 text-muted-foreground shrink-0"><Mail className="w-3 h-3" />{s.vendorEmail}</span>}
+                            {s.vendorCountry && <span className="text-muted-foreground shrink-0 font-mono">{s.vendorCountry}</span>}
                           </div>
                           <div className="flex gap-1 ml-2 shrink-0">
-                            <button onClick={() => { setEditingSup({ ...s }); setEditingSupId(s.id); setEditingSupMatId(m.id); }}
+                            <button onClick={() => { setEditingSup({ ...s }); setEditingSupId(s.id); setEditingSupMatId(m.id); setBcItemNo(""); setBcError(null); }}
                               className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded"><Pencil className="w-3 h-3" /></button>
                             <button onClick={() => deleteSupplier(m.id, s.id)}
                               className="p-1 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded"><Trash2 className="w-3 h-3" /></button>
@@ -316,7 +466,6 @@ function RfqTab() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // New RFQ form state
   const [newMatId, setNewMatId] = useState<number | "">("");
   const [newQty, setNewQty] = useState("");
   const [newDate, setNewDate] = useState("");
@@ -325,7 +474,6 @@ function RfqTab() {
   const [sending, setSending] = useState(false);
   const [sendEmails, setSendEmails] = useState(true);
 
-  // Offer form state
   const [addingOfferRfqId, setAddingOfferRfqId] = useState<number | null>(null);
   const [editingOffer, setEditingOffer] = useState<Partial<Offer> | null>(null);
   const [editingOfferId, setEditingOfferId] = useState<number | null>(null);
@@ -346,7 +494,6 @@ function RfqTab() {
   function toggleSupplier(id: number) {
     setSelectedSuppliers(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
-
   function toggleExpand(id: number) {
     setExpanded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
@@ -435,17 +582,15 @@ function RfqTab() {
         </div>
       </div>
 
-      {error && <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"><AlertTriangle className="w-4 h-4" />{error}</div>}
-      {success && <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700"><CheckCircle2 className="w-4 h-4" />{success}</div>}
+      {error && <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"><AlertTriangle className="w-4 h-4 shrink-0" />{error}</div>}
+      {success && <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700"><CheckCircle2 className="w-4 h-4 shrink-0" />{success}</div>}
 
-      {/* New RFQ panel */}
       {showNew && (
         <div className="border border-primary/30 rounded-xl bg-primary/5 p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-foreground">Novo primerjalno povpraševanje</h3>
             <button onClick={() => { setShowNew(false); setError(null); }} className="p-1 hover:bg-muted rounded"><X className="w-4 h-4" /></button>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="text-xs font-medium text-muted-foreground block mb-1">Material *</label>
@@ -466,7 +611,6 @@ function RfqTab() {
                 className="w-full border border-border rounded px-3 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30" />
             </div>
           </div>
-
           <div className="mb-4">
             <label className="text-xs font-medium text-muted-foreground block mb-1">Opombe (neobvezno)</label>
             <input value={newNotes} onChange={e => setNewNotes(e.target.value)}
@@ -479,7 +623,9 @@ function RfqTab() {
                 Izberi dobavitelje ({selectedSuppliers.size} izbranih)
               </label>
               {selectedMaterial.suppliers.length === 0 && (
-                <p className="text-sm text-muted-foreground italic">Ta material nima dodanih dobaviteljev. Najprej jih dodaj v zavihku "Generične kode".</p>
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-xs">
+                  Ta material nima dodanih dobaviteljev. Najprej jih dodaj v zavihku "Generične kode".
+                </p>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {selectedMaterial.suppliers.map(s => {
@@ -506,7 +652,7 @@ function RfqTab() {
           )}
 
           <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
               <input type="checkbox" checked={sendEmails} onChange={e => setSendEmails(e.target.checked)} className="rounded" />
               Pošlji e-pošto dobaviteljem
             </label>
@@ -530,13 +676,13 @@ function RfqTab() {
       <div className="space-y-3">
         {rfqs.map(rfq => {
           const isOpen = expanded.has(rfq.id);
-          const bestOffer = rfq.offers.length > 0
-            ? rfq.offers.reduce((best, o) => (o.unitPrice != null && (best.unitPrice == null || o.unitPrice < best.unitPrice)) ? o : best, rfq.offers[0])
+          const offersWithPrice = rfq.offers.filter(o => o.unitPrice != null);
+          const bestOffer = offersWithPrice.length > 0
+            ? offersWithPrice.reduce((best, o) => (o.unitPrice! < best.unitPrice!) ? o : best)
             : null;
 
           return (
             <div key={rfq.id} className="border border-border rounded-xl overflow-hidden">
-              {/* RFQ header */}
               <div className="flex items-center justify-between px-4 py-3 bg-muted/20 hover:bg-muted/40 transition-colors">
                 <button onClick={() => toggleExpand(rfq.id)} className="flex items-center gap-3 flex-1 text-left min-w-0">
                   <div className="min-w-0">
@@ -544,22 +690,24 @@ function RfqTab() {
                       <span className="font-semibold text-sm text-foreground truncate">{rfq.material?.name ?? "—"}</span>
                       <span className="font-mono text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">{rfq.material?.genericCode}</span>
                     </div>
-                    <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-muted-foreground">
                       <span>{rfq.quantity} {rfq.uom}</span>
-                      <span>·</span>
+                      <span className="text-border">·</span>
                       <span>{rfq.recipients.length} dobaviteljev</span>
-                      <span>·</span>
+                      <span className="text-border">·</span>
                       <span>{rfq.offers.length} ponudb</span>
-                      {rfq.sentAt && <><span>·</span><span>Poslano {fmtDate(rfq.sentAt)}</span></>}
-                      {bestOffer?.unitPrice != null && (
+                      {rfq.sentAt && <><span className="text-border">·</span><span>Poslano {fmtDate(rfq.sentAt)}</span></>}
+                      {bestOffer && (
                         <span className="text-green-700 font-medium flex items-center gap-1">
                           <Star className="w-3 h-3 fill-green-500" />
-                          Najugodnejša: {fmtPrice(bestOffer.unitPrice, bestOffer.currency)} — {bestOffer.vendorName}
+                          {fmtPrice(bestOffer.unitPrice, bestOffer.currency)} — {bestOffer.vendorName}
                         </span>
                       )}
                     </div>
                   </div>
-                  {isOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0 ml-auto" /> : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0 ml-auto" />}
+                  <div className="ml-auto shrink-0">
+                    {isOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                  </div>
                 </button>
                 <button onClick={() => deleteRfq(rfq.id)} className="ml-2 p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded shrink-0">
                   <Trash2 className="w-3.5 h-3.5" />
@@ -570,7 +718,7 @@ function RfqTab() {
                 <div className="border-t border-border">
                   {/* Recipients */}
                   <div className="px-4 py-3 border-b border-border/50">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Prejemniki povpraševanja</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Prejemniki</p>
                     <div className="flex flex-wrap gap-2">
                       {rfq.recipients.map(r => (
                         <div key={r.id} className="flex items-center gap-1.5 text-xs bg-muted px-2.5 py-1 rounded-full">
@@ -582,15 +730,12 @@ function RfqTab() {
                     </div>
                   </div>
 
-                  {/* Offers comparison */}
+                  {/* Offers */}
                   <div className="px-4 py-3">
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prejete ponudbe</p>
-                      <button onClick={() => {
-                        setAddingOfferRfqId(rfq.id);
-                        setEditingOffer({ vendorName: "", currency: "EUR" });
-                        setEditingOfferId(null);
-                      }} className="flex items-center gap-1 text-xs text-primary hover:underline">
+                      <button onClick={() => { setAddingOfferRfqId(rfq.id); setEditingOffer({ vendorName: "", currency: "EUR" }); setEditingOfferId(null); }}
+                        className="flex items-center gap-1 text-xs text-primary hover:underline">
                         <Plus className="w-3 h-3" /> Vnesi ponudbo
                       </button>
                     </div>
@@ -610,7 +755,7 @@ function RfqTab() {
                           {([
                             ["Cena/EM", "unitPrice", "number"],
                             ["Valuta", "currency", "text"],
-                            ["Dobavni rok (dni)", "deliveryDays", "number"],
+                            ["Rok (dni)", "deliveryDays", "number"],
                             ["MOQ", "moq", "number"],
                             ["Veljavno do", "validUntil", "date"],
                             ["Opombe", "notes", "text"],
@@ -620,7 +765,7 @@ function RfqTab() {
                               <input type={type} value={(editingOffer as Record<string, string | number>)[key] ?? ""}
                                 onChange={e => setEditingOffer(p => ({
                                   ...p,
-                                  [key]: (type === "number" && e.target.value) ? parseFloat(e.target.value) : e.target.value || (type === "number" ? null : ""),
+                                  [key]: (type === "number" && e.target.value) ? parseFloat(e.target.value) : (e.target.value || (type === "number" ? null : "")),
                                 }))}
                                 className="w-full border border-border rounded px-2 py-1 text-xs bg-background focus:outline-none focus:ring-1 focus:ring-primary/30" />
                             </div>
@@ -638,7 +783,7 @@ function RfqTab() {
                     )}
 
                     {rfq.offers.length === 0 && addingOfferRfqId !== rfq.id && (
-                      <p className="text-xs text-muted-foreground italic">Ni vnesenih ponudb. Klikni "Vnesi ponudbo" ko prejmete odgovore dobaviteljev.</p>
+                      <p className="text-xs text-muted-foreground italic">Ni vnesenih ponudb.</p>
                     )}
 
                     {rfq.offers.length > 0 && (
@@ -648,8 +793,8 @@ function RfqTab() {
                             <tr className="bg-muted/30">
                               <th className="px-3 py-2 text-left font-semibold text-muted-foreground">Dobavitelj</th>
                               <th className="px-3 py-2 text-right font-semibold text-muted-foreground">Cena/EM</th>
-                              <th className="px-3 py-2 text-center font-semibold text-muted-foreground">Valuta</th>
-                              <th className="px-3 py-2 text-center font-semibold text-muted-foreground">Rok (dni)</th>
+                              <th className="px-3 py-2 text-center font-semibold text-muted-foreground">Val.</th>
+                              <th className="px-3 py-2 text-center font-semibold text-muted-foreground">Rok</th>
                               <th className="px-3 py-2 text-center font-semibold text-muted-foreground">MOQ</th>
                               <th className="px-3 py-2 text-center font-semibold text-muted-foreground">Veljavno do</th>
                               <th className="px-3 py-2 text-left font-semibold text-muted-foreground">Opombe</th>
@@ -658,7 +803,7 @@ function RfqTab() {
                           </thead>
                           <tbody>
                             {rfq.offers.map((o, i) => {
-                              const isBest = bestOffer?.id === o.id && o.unitPrice != null;
+                              const isBest = bestOffer?.id === o.id;
                               return (
                                 <tr key={o.id} className={`border-t border-border ${isBest ? "bg-green-50" : i % 2 === 0 ? "bg-white" : "bg-muted/10"}`}>
                                   <td className="px-3 py-2 font-medium">
@@ -705,16 +850,12 @@ function RfqTab() {
 
 export default function WhitewashPage() {
   const [tab, setTab] = useState<WTab>("materials");
-
   return (
     <div className="max-w-[1600px] mx-auto px-6 py-6">
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-foreground">Primerjalno povpraševanje</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Poveži isti material pri različnih dobaviteljih in pošlji primerjalna povpraševanja
-        </p>
+        <p className="text-sm text-muted-foreground mt-1">Poveži isti material pri različnih dobaviteljih in pošlji primerjalna povpraševanja</p>
       </div>
-
       <div className="flex gap-1 mb-6 bg-muted/40 p-1 rounded-lg w-fit">
         {([
           { id: "materials" as WTab, label: "Generične kode", icon: <Package className="w-3.5 h-3.5" /> },
@@ -726,7 +867,6 @@ export default function WhitewashPage() {
           </button>
         ))}
       </div>
-
       {tab === "materials" && <MaterialsTab />}
       {tab === "rfqs" && <RfqTab />}
     </div>
