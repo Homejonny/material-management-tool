@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { MaterialPriceSource } from "./materialPriceSource";
 import type { Substitute } from "./substitute";
 
 export interface Material {
@@ -12,10 +13,15 @@ export interface Material {
   opis: string;
   zaloga: number;
   cena: number;
+  price_source: MaterialPriceSource;
   uom: string;
   replenishment: string;
   kolicina: number;
   totalSubStock: number;
   dejansko: number;
+  order_multiple: number;
+  order_qty: number;
+  order_value: number;
+  has_substitutes: boolean;
   nadomestki: Substitute[];
 }

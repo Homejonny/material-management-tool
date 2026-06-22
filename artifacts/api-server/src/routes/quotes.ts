@@ -1,4 +1,5 @@
 import { Router } from "express";
+import pdfParse from "pdf-parse";
 import multer from "multer";
 import { db, vendorQuotesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -28,7 +29,7 @@ function buildSystemPrompt(vendorHint?: string): string {
   return `You are a procurement assistant. Extract structured quote data from vendor emails, price lists, or screenshots.
 Return a JSON object with a "lines" array. Each item in "lines" must have:
 - ${vendorLine}
-- item_no: string — GMP Pharma's internal 6-digit material code ONLY (e.g. "000024", "000133"). It must be exactly 6 digits with leading zeros. NEVER use the vendor's own product code, short numbers like "133", or any non-GMP code. If the document does not explicitly contain a GMP 6-digit code, leave as "".
+- item_no: string — GMP Pharma's internal 6-digit material code. Rules: (1) In structured vendor quotations look for a field labeled "Your Item Code", "Customer Item Code", "Customer Code", "Buyer Code", or similar — these contain GMP Pharma's 6-digit codes (e.g. "000024", "000133"). (2) In emails/text, if an item is referenced with "Pozicija" or "Pozicija:" followed by a number (e.g. "Pozicija: 152", "Pozicija:105"), that number IS the GMP internal code — pad it to 6 digits with leading zeros (152 → "000152"). (3) Must be exactly 6 digits with leading zeros. NEVER use the vendor's own product code unless it matches the 6-digit GMP format exactly. If no GMP code is identifiable, leave as "".
 - item_description: string — full product/material name as written in the quote.
 - price: number or null — unit price (numeric only, no currency symbols). Parse European decimals: "34,80" → 34.80.
 - currency: string — "EUR", "USD", etc. Default "EUR".
@@ -42,19 +43,52 @@ Extract EVERY product row from tables or lists. Do NOT skip any line item.
 If a field cannot be determined, use null or "".`;
 }
 
-async function parseQuoteText(text: string, sourceHint: string, vendorHint?: string): Promise<ParsedQuoteLine[]> {
+// ~4 chars per token; keep each chunk well under 20k tokens (system prompt ~800 + user content)
+const MAX_CHUNK_CHARS = 14000;
+
+async function parseQuoteChunk(chunk: string, sourceHint: string, vendorHint?: string): Promise<ParsedQuoteLine[]> {
   const response = await openai.chat.completions.create({
     model: "gpt-4.1",
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: buildSystemPrompt(vendorHint) },
-      { role: "user", content: `Source: ${sourceHint}\n\n${text}` },
+      { role: "user", content: `Source: ${sourceHint}\n\n${chunk}` },
     ],
   });
-
   const raw = response.choices[0]?.message?.content ?? "{}";
   const parsed = JSON.parse(raw) as { lines?: ParsedQuoteLine[] };
   return parsed.lines ?? [];
+}
+
+async function parseQuoteText(text: string, sourceHint: string, vendorHint?: string): Promise<ParsedQuoteLine[]> {
+  if (text.length <= MAX_CHUNK_CHARS) {
+    return parseQuoteChunk(text, sourceHint, vendorHint);
+  }
+
+  // Split into overlapping chunks so items spanning chunk boundaries are not missed
+  const overlap = 1000;
+  const chunks: string[] = [];
+  let start = 0;
+  while (start < text.length) {
+    chunks.push(text.slice(start, start + MAX_CHUNK_CHARS));
+    start += MAX_CHUNK_CHARS - overlap;
+  }
+
+  // Parse each chunk sequentially (avoid hitting rate limits simultaneously)
+  const allLines: ParsedQuoteLine[] = [];
+  for (const chunk of chunks) {
+    const lines = await parseQuoteChunk(chunk, sourceHint, vendorHint);
+    allLines.push(...lines);
+  }
+
+  // Deduplicate: keep first occurrence of each (item_no+description+price) triple
+  const seen = new Set<string>();
+  return allLines.filter(line => {
+    const key = `${line.item_no}|${line.item_description.trim().toLowerCase()}|${line.price}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 async function parseQuoteImage(imageBuffer: Buffer, mimeType: string, sourceHint: string, vendorHint?: string): Promise<ParsedQuoteLine[]> {
@@ -110,6 +144,9 @@ router.post("/quotes/parse", upload.single("file"), async (req, res) => {
         const mammoth = (await import("mammoth")).default;
         const result = await mammoth.extractRawText({ buffer: req.file.buffer });
         text = result.value;
+      } else if (filename.endsWith(".pdf")) {
+        const pdfData = await pdfParse(req.file.buffer);
+        text = pdfData.text;
       } else {
         text = req.file.buffer.toString("utf-8");
       }

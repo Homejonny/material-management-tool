@@ -7,8 +7,9 @@ const POLL_MS = 10_000;
 function getOrCreateClientId(): string {
   let id = localStorage.getItem("presence_client_id");
   if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem("presence_client_id", id);
+    const clientId = Math.random().toString(36).slice(2);
+    localStorage.setItem("presence_client_id", clientId);
+    id = clientId;
   }
   return id;
 }

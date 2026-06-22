@@ -70,16 +70,30 @@ export interface Substitute {
   cena: number;
 }
 
+export type MaterialPriceSource =
+  (typeof MaterialPriceSource)[keyof typeof MaterialPriceSource];
+
+export const MaterialPriceSource = {
+  unit_cost: "unit_cost",
+  price_list: "price_list",
+  missing: "missing",
+} as const;
+
 export interface Material {
   st: string | number;
   opis: string;
   zaloga: number;
   cena: number;
+  price_source: MaterialPriceSource;
   uom: string;
   replenishment: string;
   kolicina: number;
   totalSubStock: number;
   dejansko: number;
+  order_multiple: number;
+  order_qty: number;
+  order_value: number;
+  has_substitutes: boolean;
   nadomestki: Substitute[];
 }
 

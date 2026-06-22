@@ -22,11 +22,16 @@ export const GetMaterialsResponseItem = zod.object({
   opis: zod.string(),
   zaloga: zod.number(),
   cena: zod.number(),
+  price_source: zod.enum(["unit_cost", "price_list", "missing"]),
   uom: zod.string(),
   replenishment: zod.string(),
   kolicina: zod.number(),
   totalSubStock: zod.number(),
   dejansko: zod.number(),
+  order_multiple: zod.number(),
+  order_qty: zod.number(),
+  order_value: zod.number(),
+  has_substitutes: zod.boolean(),
   nadomestki: zod.array(
     zod.object({
       st: zod.union([zod.string(), zod.number()]),

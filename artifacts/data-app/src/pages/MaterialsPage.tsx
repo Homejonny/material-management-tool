@@ -33,6 +33,7 @@ type Material = {
   dejansko: number;
   order_multiple: number;
   order_qty: number;
+  order_value: number;
   has_substitutes: boolean;
   nadomestki: Substitute[];
 };
@@ -259,6 +260,20 @@ export default function MaterialsPage() {
       },
     },
     {
+      accessorKey: "order_value",
+      header: "Vrednost naročila",
+      size: 150,
+      cell: info => {
+        const v = info.getValue() as number | undefined;
+        if (!v || v === 0) return <span className="text-muted-foreground">—</span>;
+        return (
+          <span className="font-medium text-foreground">
+            {v.toLocaleString("sl-SI", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+          </span>
+        );
+      },
+    },
+    {
       id: "status",
       header: "Status",
       size: 90,
@@ -299,7 +314,7 @@ export default function MaterialsPage() {
 
   const toOrder = useMemo(() => filteredData.filter(m => m.dejansko > 0).length, [filteredData]);
   const covered = useMemo(() => filteredData.filter(m => m.dejansko === 0).length, [filteredData]);
-  const totalOrderValue = useMemo(() => filteredData.reduce((s, m) => s + (m.order_qty ?? m.dejansko) * m.cena, 0), [filteredData]);
+  const totalOrderValue = useMemo(() => filteredData.reduce((s, m) => s + (m.order_value ?? (m.order_qty ?? m.dejansko) * m.cena), 0), [filteredData]);
   const missingPrice = useMemo(() => filteredData.filter(m => m.price_source === "missing").length, [filteredData]);
 
   if (isLoading) {

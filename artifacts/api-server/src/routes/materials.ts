@@ -18,6 +18,7 @@ type BcItem = {
   InventoryField: number;
   Unit_Cost: number;
   Base_Unit_of_Measure: string;
+  Purch_Unit_of_Measure: string;
   Replenishment_System: string;
   Substitutes_Exist: boolean;
 };
@@ -45,6 +46,7 @@ export type Material = {
   dejansko: number;
   order_multiple: number;
   order_qty: number;
+  order_value: number;
   has_substitutes: boolean;
   nadomestki: Array<{ st: string; opis: string; zaloga: number; cena: number; uom: string }>;
 };
@@ -72,25 +74,31 @@ type BcWorkflowItem = {
   number: string;
   orderMultiple: number;
   minimumOrderQuantity: number;
+  netWeight: number;
+  purchUnitOfMeasure: string;
 };
 
-async function fetchBcOrderMultiples(): Promise<Map<string, number>> {
+async function fetchBcOrderMultiples(): Promise<{ multiples: Map<string, number>; weights: Map<string, { netWeight: number; purchUoM: string }> }> {
   const rows = await paginatedFetch<BcWorkflowItem>(
-    `${BASE_URL}/workflowItems?$select=number,orderMultiple,minimumOrderQuantity&$top=500`
+    `${BASE_URL}/workflowItems?$select=number,orderMultiple,minimumOrderQuantity,netWeight,purchUnitOfMeasure&$top=500`
   );
-  const map = new Map<string, number>();
+  const multiples = new Map<string, number>();
+  const weights = new Map<string, { netWeight: number; purchUoM: string }>();
   for (const r of rows) {
     const key = r.number?.trim();
     if (!key) continue;
     const val = r.orderMultiple > 0 ? r.orderMultiple : r.minimumOrderQuantity;
-    if (val > 0) map.set(key, val);
+    if (val > 0) multiples.set(key, val);
+    if (r.netWeight > 0 || r.purchUnitOfMeasure) {
+      weights.set(key, { netWeight: r.netWeight ?? 0, purchUoM: r.purchUnitOfMeasure?.trim() ?? "" });
+    }
   }
-  return map;
+  return { multiples, weights };
 }
 
 async function fetchBcItems(): Promise<Map<string, BcItem>> {
   const rows = await paginatedFetch<BcItem>(
-    `${BASE_URL}/Item?$select=No,Description,InventoryField,Unit_Cost,Base_Unit_of_Measure,Replenishment_System,Substitutes_Exist&$top=500`
+    `${BASE_URL}/Item?$select=No,Description,InventoryField,Unit_Cost,Base_Unit_of_Measure,Purch_Unit_of_Measure,Replenishment_System,Substitutes_Exist&$top=500`
   );
   return new Map(rows.map((r) => [r.No.trim(), r]));
 }
@@ -239,13 +247,15 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
   if (bcCache && Date.now() - bcCache.fetchedAt < CACHE_TTL) return bcCache.data;
 
   log("Fetching BC Items + ProdOrderComponents + Substitutes + Purchase Orders...");
-  const [itemsMap, bcMultiplesMap, purchasePriceMap, substitutesMap, purchaseOrderedMap] = await Promise.all([
+  const [itemsMap, bcWorkflowData, purchasePriceMap, substitutesMap, purchaseOrderedMap] = await Promise.all([
     fetchBcItems(),
     fetchBcOrderMultiples(),
     fetchPurchasePriceMap(),
     fetchBcSubstitutesMap(),
     fetchPurchaseOrderedQtyMap(),
   ]);
+  const bcMultiplesMap = bcWorkflowData.multiples;
+  const bcWeightsMap = bcWorkflowData.weights;
   const prodNeeds = await fetchProdNeeds(itemsMap);
   log(`BC: ${itemsMap.size} items, ${prodNeeds.size} with prod needs, ${purchasePriceCount} prices, ${Object.keys(substitutesMap).length} items with substitutes, ${purchaseOrderedMap.size} items on order${purchasePriceError ? " | CENIK ERROR: " + purchasePriceError : ""}`);
 
@@ -297,7 +307,20 @@ export async function getMaterialsWithLiveData(log: (msg: string) => void): Prom
     const order_multiple = bcMultiplesMap.get(itemNo) ?? 0;
     const order_qty = order_multiple > 0 ? Math.ceil(dejansko / order_multiple) * order_multiple : dejansko;
 
-    materials.push({ st: itemNo, opis, zaloga, cena, price_source, uom, replenishment, kolicina: need.qty, totalSubStock, dejansko, order_multiple, order_qty, has_substitutes, nadomestki });
+    // Apply purchase UoM conversion if needed
+    // BC stores Unit_Cost per Purch_Unit_of_Measure (KG), not per Base_Unit_of_Measure (KOS)
+    // netWeight = KG per KOS → price_per_KOS = price_per_KG × netWeight
+    let correctedCena = cena;
+    const purchUoM = bcItem?.Purch_Unit_of_Measure?.trim() ?? "";
+    if (purchUoM === "KG" && purchUoM !== uom) {
+      const wData = bcWeightsMap.get(itemNo);
+      if (wData && wData.netWeight > 0) {
+        correctedCena = Math.round(cena * wData.netWeight * 100000) / 100000;
+      }
+    }
+    const order_value = Math.round(correctedCena * order_qty * 100) / 100;
+
+    materials.push({ st: itemNo, opis, zaloga, cena: correctedCena, price_source, uom, replenishment, kolicina: need.qty, totalSubStock, dejansko, order_multiple, order_qty, order_value, has_substitutes, nadomestki });
   }
 
   // Default sort: price descending (most expensive first)

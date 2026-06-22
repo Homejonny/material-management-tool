@@ -178,6 +178,10 @@ export default function QuotesPage() {
     setEditedLines(prev => prev.map((l, idx) => idx === i ? { ...l, [field]: value } : l));
   }
 
+  function isValidIdent(v: string) {
+    return /^\d{6}$/.test((v ?? "").trim());
+  }
+
   function toggleGroup(key: string) {
     setExpandedGroups(prev => {
       const next = new Set(prev);
@@ -302,10 +306,10 @@ export default function QuotesPage() {
               className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
                 dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/30"
               }`}>
-              <input ref={fileInputRef} type="file" accept=".txt,.docx,.doc,.png,.jpg,.jpeg,.webp,.gif" onChange={handleFileInput} className="hidden" />
+              <input ref={fileInputRef} type="file" accept=".txt,.docx,.doc,.pdf,.png,.jpg,.jpeg,.webp,.gif" onChange={handleFileInput} className="hidden" />
               <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
               <p className="font-medium text-sm text-foreground">Povleci datoteko sem ali klikni</p>
-              <p className="text-xs text-muted-foreground mt-1">Sprejema: TXT, DOCX, PNG, JPG, WEBP · Max 10 MB</p>
+              <p className="text-xs text-muted-foreground mt-1">Sprejema: TXT, DOCX, PDF, PNG, JPG, WEBP · Max 10 MB</p>
             </div>
 
             {/* Paste area */}
@@ -361,16 +365,29 @@ export default function QuotesPage() {
                     </p>
                     <p className="text-xs text-muted-foreground">{editedLines.length} vrstic najdenih — preverite in shranite</p>
                   </div>
-                  <button onClick={handleSave} disabled={saving || editedLines.length === 0}
+                  <button onClick={handleSave} disabled={saving || editedLines.length === 0 || editedLines.some(l => !isValidIdent(l.item_no))}
+                    title={editedLines.some(l => !isValidIdent(l.item_no)) ? "Najprej izpolnite vse manjkajoče idente" : ""}
                     className="flex items-center gap-2 px-4 py-1.5 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
                     {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                     Shrani
                   </button>
                 </div>
 
+                {editedLines.some(l => !isValidIdent(l.item_no)) && (
+                  <div className="flex items-start gap-2 p-3 mb-3 bg-orange-50 border border-orange-300 rounded-lg text-sm text-orange-800">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-orange-500" />
+                    <div>
+                      <span className="font-semibold">{editedLines.filter(l => !isValidIdent(l.item_no)).length} artiklov nima veljavnega 6-mestnega identa.</span>
+                      {" "}Vpišite ident (npr. 000152) v oranžno označena polja pred shranjevanjem.
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
-                  {editedLines.map((line, i) => (
-                    <div key={i} className="border border-border rounded-lg p-3 bg-white text-xs space-y-2">
+                  {editedLines.map((line, i) => {
+                    const missingIdent = !isValidIdent(line.item_no);
+                    return (
+                    <div key={i} className={`border rounded-lg p-3 text-xs space-y-2 ${missingIdent ? "border-orange-300 bg-orange-50/40" : "border-border bg-white"}`}>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <label className="text-muted-foreground block mb-0.5">Dobavitelj</label>
@@ -378,9 +395,13 @@ export default function QuotesPage() {
                             className="w-full border border-border rounded px-2 py-1 text-xs bg-background focus:outline-none focus:ring-1 focus:ring-primary/30" />
                         </div>
                         <div>
-                          <label className="text-muted-foreground block mb-0.5">Šifra artikla</label>
+                          <label className="text-muted-foreground block mb-0.5 flex items-center gap-1">
+                            Šifra artikla (6-mestni)
+                            {missingIdent && <span className="text-orange-500 font-semibold text-[10px]">⚠ manjka</span>}
+                          </label>
                           <input value={line.item_no} onChange={e => updateLine(i, "item_no", e.target.value)}
-                            className="w-full border border-border rounded px-2 py-1 text-xs font-mono bg-background focus:outline-none focus:ring-1 focus:ring-primary/30" />
+                            className={`w-full border rounded px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 ${missingIdent ? "border-orange-400 bg-orange-50 focus:ring-orange-300" : "border-border bg-background focus:ring-primary/30"}`}
+                            placeholder="000000" />
                         </div>
                       </div>
                       <div>
@@ -427,7 +448,8 @@ export default function QuotesPage() {
                         <Trash2 className="w-3 h-3" /> Odstrani vrstico
                       </button>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
